@@ -11,7 +11,6 @@ import { renderIncomeVsExpense } from './views/incomeVsExpense.js';
 import { renderCategoryAnalysis } from './views/categoryAnalysis.js';
 import { renderSavingGoals } from './views/savingGoals.js';
 import { exportToPDF, exportToCSV } from './export.js';
-import { renderLockedView } from './views/locked.js'; 
 
 class App {
   constructor() {
@@ -54,33 +53,37 @@ class App {
     const user = supabaseService.currentUser;
 
     if (!user) {
-      // Panggil tampilan locked view
-      renderLockedView(this);
-
-      // Sembunyikan isi dashboard utama
+      // 1. Render Layar Terkunci di Area Konten Utama
       const mainContent = document.getElementById('main-view-content');
       if (mainContent) {
         mainContent.innerHTML = `
-          <div class="flex flex-col items-center justify-center min-h-[60vh] text-center p-6">
-            <div class="w-16 h-16 rounded-2xl bg-emerald-100 text-emerald-800 flex items-center justify-center mb-4 shadow-sm">
+          <div class="flex flex-col items-center justify-center min-h-[60vh] text-center p-6 animate-fadeIn">
+            <div class="w-16 h-16 rounded-2xl bg-emerald-100 text-emerald-800 flex items-center justify-center mb-4 shadow-sm mx-auto">
               <i data-lucide="lock" class="w-8 h-8"></i>
             </div>
-            <h2 class="text-xl font-black text-slate-900 mb-1">Akses Terkunci</h2>
-            <p class="text-xs text-slate-500 max-w-sm mb-5">Silakan masuk ke akun Anda terlebih dahulu untuk mengakses dashboard keuangan DataryWorks.</p>
-            <button id="btn-guard-login" class="px-5 py-2.5 bg-emerald-800 hover:bg-emerald-900 text-white rounded-xl text-xs font-bold shadow-md transition flex items-center gap-2 cursor-pointer">
-              <i data-lucide="log-in" class="w-4 h-4"></i> Masuk Sekarang
+            <h2 class="text-2xl font-black text-slate-900 mb-1 tracking-tight">Akses Terkunci</h2>
+            <p class="text-xs text-slate-500 max-w-sm mb-6 leading-relaxed">
+              Silakan masuk ke akun Anda terlebih dahulu untuk mengakses dashboard keuangan DataryWorks.
+            </p>
+            <button id="btn-guard-login" class="px-6 py-3 bg-emerald-800 hover:bg-emerald-900 text-white rounded-xl text-xs font-bold shadow-md transition flex items-center justify-center gap-2 cursor-pointer mx-auto">
+              <i data-lucide="log-in" class="w-4 h-4"></i>
+              <span>Masuk Sekarang</span>
             </button>
           </div>
         `;
 
-        // Attach event listener langsung ke tombol guard
-        const guardBtn = document.getElementById('btn-guard-login');
-        if (guardBtn) {
-          guardBtn.onclick = () => this.modalManager.openAuthModal('login');
-        }
+        // Daftarkan handler klik tombol guard
+        setTimeout(() => {
+          const guardBtn = document.getElementById('btn-guard-login');
+          if (guardBtn) {
+            guardBtn.onclick = () => {
+              if (this.modalManager) this.modalManager.openAuthModal('login');
+            };
+          }
+        }, 50);
       }
 
-      // Sembunyikan/Reset sidebar
+      // 2. Reset/Sembunyikan Menu Sidebar
       const sidebarEl = document.getElementById('sidebar-container');
       if (sidebarEl) {
         sidebarEl.innerHTML = `
@@ -99,6 +102,12 @@ class App {
       }
 
       if (window.lucide) window.lucide.createIcons();
+
+      // 3. Otomatis Buka Modal Login Saat Pertama kali Buka Aplikasi
+      setTimeout(() => {
+        if (this.modalManager) this.modalManager.openAuthModal('login');
+      }, 300);
+
       return false;
     }
 
