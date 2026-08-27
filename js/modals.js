@@ -12,9 +12,10 @@ export class ModalManager {
   }
 
   close() {
-    if (this.container) {
-      this.container.innerHTML = '';
-      this.container.classList.add('hidden');
+    const container = document.getElementById('modal-container');
+    if (container) {
+      container.innerHTML = '';
+      container.classList.add('hidden');
     }
   }
 
