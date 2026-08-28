@@ -48,41 +48,24 @@ class App {
     });
   }
 
-  // --- AUTH GUARD: KUNCI HALAMAN DENGAN TAMPILAN DARK FULLPAGE ---
+  // --- AUTH GUARD: LANGSUNG BUKA MODAL LOGIN DENGAN LATAR GELAP ---
   checkAuthGuard() {
     const user = supabaseService.currentUser;
 
     if (!user) {
-      // 1. Ubah tampilan area utama menjadi Latar Gelap & Rapi
+      // 1. Set latar belakang utama menjadi hitam/gelap polos
       const mainContent = document.getElementById('main-view-content');
       if (mainContent) {
         mainContent.innerHTML = `
-          <div class="min-h-[75vh] flex flex-col items-center justify-center bg-[#0F172A] rounded-3xl border border-slate-800 p-8 text-center animate-fadeIn shadow-2xl my-4">
-            <div class="w-16 h-16 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center justify-center mb-5 shadow-lg mx-auto">
-              <i data-lucide="shield-check" class="w-8 h-8"></i>
+          <div class="min-h-[80vh] flex flex-col items-center justify-center bg-[#0F172A] rounded-3xl border border-slate-800 p-8 text-center my-4">
+            <div class="text-slate-500 text-xs font-semibold">
+              Silakan masuk ke akun Anda pada pop-up di atas untuk mengakses dashboard.
             </div>
-            <h2 class="text-2xl font-black text-white mb-2 tracking-tight">Selamat Datang di DataryWorks</h2>
-            <p class="text-xs text-slate-400 max-w-md mb-6 leading-relaxed">
-              Akses dashboard portofolio dan manajemen keuangan pribadi Anda dengan aman.
-            </p>
-            <button id="btn-guard-login" class="px-7 py-3 bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-black rounded-xl text-xs shadow-lg shadow-emerald-500/20 transition flex items-center justify-center gap-2 cursor-pointer mx-auto">
-              <i data-lucide="log-in" class="w-4 h-4"></i>
-              <span>Masuk ke Dashboard</span>
-            </button>
           </div>
         `;
-
-        setTimeout(() => {
-          const guardBtn = document.getElementById('btn-guard-login');
-          if (guardBtn) {
-            guardBtn.onclick = () => {
-              if (this.modalManager) this.modalManager.openAuthModal('login');
-            };
-          }
-        }, 50);
       }
 
-      // 2. Reset Sidebar ke Mode Gelap Minimalis
+      // 2. Reset Sidebar ke Mode Minimalis Dark
       const sidebarEl = document.getElementById('sidebar-container');
       if (sidebarEl) {
         sidebarEl.innerHTML = `
@@ -101,6 +84,17 @@ class App {
       }
 
       if (window.lucide) window.lucide.createIcons();
+
+      // 3. Otomatis buka Pop-up Login langsung saat halaman dimuat
+      setTimeout(() => {
+        if (this.modalManager) {
+          const modalContainer = document.getElementById('modal-container');
+          if (modalContainer && modalContainer.classList.contains('hidden')) {
+            this.modalManager.openAuthModal('login');
+          }
+        }
+      }, 100);
+
       return false;
     }
 

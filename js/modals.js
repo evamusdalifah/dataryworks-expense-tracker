@@ -1048,12 +1048,11 @@ export class ModalManager {
     }
   }
 
-  // --- 8. AUTHENTICATION MODAL (LOGIN / REGISTER FIXED VALIDATION) ---
+  // --- 8. AUTHENTICATION MODAL (FIXED SUPABASE RESPONSE CHECK) ---
   openAuthModal(initialTab = 'login') {
     let isLogin = initialTab === 'login';
 
     const renderAuthContent = () => `
-      <!-- HEADER MODAL AUTH (TANPA TOMBOL X UNTUK TAMPILAN FULLSCREEN CLEAN) -->
       <div class="p-6 border-b border-slate-100 text-center">
         <h3 class="text-xl font-black text-slate-900 tracking-tight" id="auth-modal-title">
           ${isLogin ? 'Selamat Datang' : 'Buat Akun Baru'}
@@ -1121,7 +1120,6 @@ export class ModalManager {
         btnTogglePass.addEventListener('click', () => {
           const isPassword = inputPass.type === 'password';
           inputPass.type = isPassword ? 'text' : 'password';
-          
           if (iconPass) {
             iconPass.setAttribute('data-lucide', isPassword ? 'eye-off' : 'eye');
             if (window.lucide) window.lucide.createIcons();
@@ -1151,18 +1149,26 @@ export class ModalManager {
 
         try {
           if (isLogin) {
-            // Lakukan login ke Supabase
             const res = await supabaseService.signIn(email, password);
-            if (res && res.user) {
-              supabaseService.currentUser = res.user;
+            
+            // Periksa apakah Supabase mengembalikan error Kredensial
+            if (res && res.error) {
+              throw new Error(res.error.message || 'Email atau password yang Anda masukkan salah.');
+            }
+
+            if (res && (res.user || (res.data && res.data.user))) {
+              supabaseService.currentUser = res.user || res.data.user;
               await this.state.init();
-              this.close(); // HANYA TUPUP MODAL JIKA RESPONS USER ADA
+              this.close(); // Tutup modal HANYA ketika user terkonfirmasi login
             } else {
-              throw new Error('Gagal login. Kredensial tidak valid.');
+              throw new Error('Gagal terhubung ke sesi user. Cek kembali akun Anda.');
             }
           } else {
-            await supabaseService.signUp(email, password, name);
-            alert('Pendaftaran berhasil! Silakan masuk menggunakan akun baru Anda.');
+            const res = await supabaseService.signUp(email, password, name);
+            if (res && res.error) {
+              throw new Error(res.error.message);
+            }
+            alert('Pendaftaran berhasil! Silakan masuk dengan akun Anda.');
             isLogin = true;
             this.open(renderAuthContent(), 'max-w-md');
             attachAuthEvents();
@@ -1170,7 +1176,7 @@ export class ModalManager {
         } catch (err) {
           console.error('Auth error:', err);
           if (errorEl) {
-            errorEl.textContent = err.message || 'Email atau password salah. Silakan coba lagi.';
+            errorEl.textContent = err.message || 'Gagal masuk. Periksa kembali email dan kata sandi Anda.';
             errorEl.classList.remove('hidden');
           }
         } finally {
