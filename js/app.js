@@ -19,22 +19,16 @@ class App {
   }
 
   async init() {
-    // 1. Inisialisasi Supabase Service terlebih dahulu agar session terbaca
     if (typeof supabaseService.init === 'function') {
       await supabaseService.init();
     }
 
-    // 2. Inisialisasi State Aplikasi
     await state.init();
-
-    // 3. Pasang Listener Global (termasuk tombol guard login)
     this.attachGlobalEvents();
 
-    // 4. Cek Auth Guard
     const isAuthenticated = this.checkAuthGuard();
     if (!isAuthenticated) return;
 
-    // 5. Render Dashboard jika User terautentikasi
     this.renderSidebar();
     this.renderActiveView();
     this.updateFilterDropdownsUI();
@@ -48,24 +42,20 @@ class App {
     });
   }
 
-  // --- AUTH GUARD: LANGSUNG BUKA MODAL LOGIN DENGAN LATAR GELAP ---
+  // --- AUTH GUARD: DIRECT LOGIN POPUP ON DARK BACKGROUND ---
   checkAuthGuard() {
     const user = supabaseService.currentUser;
 
     if (!user) {
-      // 1. Set latar belakang utama menjadi hitam/gelap polos
+      // Set latar belakang layar utama menjadi gelap polos
       const mainContent = document.getElementById('main-view-content');
       if (mainContent) {
         mainContent.innerHTML = `
-          <div class="min-h-[80vh] flex flex-col items-center justify-center bg-[#0F172A] rounded-3xl border border-slate-800 p-8 text-center my-4">
-            <div class="text-slate-500 text-xs font-semibold">
-              Silakan masuk ke akun Anda pada pop-up di atas untuk mengakses dashboard.
-            </div>
-          </div>
+          <div class="min-h-[85vh] bg-[#0F172A] rounded-3xl border border-slate-800 my-2"></div>
         `;
       }
 
-      // 2. Reset Sidebar ke Mode Minimalis Dark
+      // Set sidebar menjadi mode gelap polos
       const sidebarEl = document.getElementById('sidebar-container');
       if (sidebarEl) {
         sidebarEl.innerHTML = `
@@ -85,15 +75,12 @@ class App {
 
       if (window.lucide) window.lucide.createIcons();
 
-      // 3. Otomatis buka Pop-up Login langsung saat halaman dimuat
+      // Otomatis munculkan pop-up login langsung
       setTimeout(() => {
         if (this.modalManager) {
-          const modalContainer = document.getElementById('modal-container');
-          if (modalContainer && modalContainer.classList.contains('hidden')) {
-            this.modalManager.openAuthModal('login');
-          }
+          this.modalManager.openAuthModal('login');
         }
-      }, 100);
+      }, 50);
 
       return false;
     }
@@ -101,7 +88,6 @@ class App {
     return true;
   }
 
-  // --- MENGHITUNG DAFTAR TAHUN SECARA DINAMIS ---
   getAvailableYears() {
     const transactions = state.transactions || [];
     const currentYear = new Date().getFullYear();
@@ -353,7 +339,7 @@ class App {
       const target = e.target.closest('button');
       if (!target) return;
 
-      if (target.id === 'btn-user-login' || target.id === 'btn-guard-login' || target.closest('#btn-user-login') || target.closest('#btn-guard-login')) {
+      if (target.id === 'btn-user-login' || target.closest('#btn-user-login')) {
         this.modalManager.openAuthModal('login');
       } else if (target.id === 'btn-user-logout' || target.closest('#btn-user-logout')) {
         if (confirm('Apakah Anda yakin ingin keluar dari akun ini?')) {
@@ -374,8 +360,6 @@ class App {
         this.modalManager.openAddContribution();
       } else if (target.id === 'btn-refresh') {
         await state.init();
-      } else if (target.id === 'btn-supabase-config') {
-        this.modalManager.openSupabaseConfig();
       }
     });
   }

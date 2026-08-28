@@ -1048,7 +1048,7 @@ export class ModalManager {
     }
   }
 
-  // --- 8. AUTHENTICATION MODAL (FIXED SUPABASE RESPONSE CHECK) ---
+  // --- 8. AUTHENTICATION MODAL (DIRECT DASHBOARD RENDER ON SUCCESS) ---
   openAuthModal(initialTab = 'login') {
     let isLogin = initialTab === 'login';
 
@@ -1151,17 +1151,29 @@ export class ModalManager {
           if (isLogin) {
             const res = await supabaseService.signIn(email, password);
             
-            // Periksa apakah Supabase mengembalikan error Kredensial
+            // Tangkap error jika kredensial salah
             if (res && res.error) {
-              throw new Error(res.error.message || 'Email atau password yang Anda masukkan salah.');
+              throw new Error(res.error.message || 'Email atau password salah.');
             }
 
-            if (res && (res.user || (res.data && res.data.user))) {
-              supabaseService.currentUser = res.user || res.data.user;
+            const activeUser = res?.user || res?.data?.user;
+            if (activeUser) {
+              supabaseService.currentUser = activeUser;
+              
+              // Load data user dari Supabase
               await this.state.init();
-              this.close(); // Tutup modal HANYA ketika user terkonfirmasi login
+              
+              // Tutup Modal Login
+              this.close();
+
+              // Direct render ke Dashboard Utama
+              if (window.app) {
+                if (typeof window.app.renderSidebar === 'function') window.app.renderSidebar();
+                if (typeof window.app.renderActiveView === 'function') window.app.renderActiveView();
+                if (typeof window.app.updateFilterDropdownsUI === 'function') window.app.updateFilterDropdownsUI();
+              }
             } else {
-              throw new Error('Gagal terhubung ke sesi user. Cek kembali akun Anda.');
+              throw new Error('Gagal masuk. Periksa kembali email dan password Anda.');
             }
           } else {
             const res = await supabaseService.signUp(email, password, name);
@@ -1176,7 +1188,7 @@ export class ModalManager {
         } catch (err) {
           console.error('Auth error:', err);
           if (errorEl) {
-            errorEl.textContent = err.message || 'Gagal masuk. Periksa kembali email dan kata sandi Anda.';
+            errorEl.textContent = err.message || 'Gagal masuk. Periksa kembali email dan password Anda.';
             errorEl.classList.remove('hidden');
           }
         } finally {
