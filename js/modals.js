@@ -1182,6 +1182,7 @@ export class ModalManager {
 
               if (window.app) {
                 if (typeof window.app.renderSidebar === 'function') window.app.renderSidebar();
+                if (typeof window.app.attachSidebarEvents === 'function') window.app.attachSidebarEvents(); // <- MENAMBAHKAN KEMBALI LISTENER KLIK SIDEBAR
                 if (typeof window.app.renderActiveView === 'function') window.app.renderActiveView();
                 if (typeof window.app.updateFilterDropdownsUI === 'function') window.app.updateFilterDropdownsUI();
               }
