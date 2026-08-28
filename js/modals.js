@@ -22,7 +22,7 @@ export class ModalManager {
   open(contentHtml, maxWidth = 'max-w-lg') {
     if (!this.container) return;
     this.container.innerHTML = `
-      <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-sm animate-fadeIn">
+      <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#0F172A] animate-fadeIn">
         <div class="bg-white rounded-3xl shadow-2xl border border-slate-200 w-full ${maxWidth} overflow-hidden animate-scaleIn max-h-[90vh] flex flex-col">
           ${contentHtml}
         </div>
