@@ -12,16 +12,18 @@ class SupabaseService {
   }
 
   loadConfig() {
+    // API Key Supabase yang sudah dibersihkan dari typo
     const defaultConfig = {
       url: 'https://jcincpuxdvuegadlepzd.supabase.co',
-      anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpjaW5jcHV4ZHZ1ZWdhZGxlpzpkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODcyOTkxMzYsImV4cCI6MjEwMjg3NTEzNn0.q5S7lfEmjIrjtLG6QZKczPbJ6yJmPOM46PyoXC1TiJ8'
+      anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpjaW5jcHV4ZHZ1ZWdhZGxlcHpkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODcyOTkxMzYsImV4cCI6MjEwMjg3NTEzNn0.q5S7lfEmjIrjtLG6QZKczPbJ6yJmPOM46PyoXC1TiJ8'
     };
 
     const saved = localStorage.getItem('datary_supabase_config');
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
-        if (parsed.url && parsed.anonKey && parsed.anonKey.length > 50) {
+        // Validasi: pastikan key tidak rusak dan tidak mengandung karakter tidak valid
+        if (parsed.url && parsed.anonKey && parsed.anonKey.length > 50 && !parsed.anonKey.includes(':')) {
           return parsed;
         }
       } catch (e) {
@@ -69,7 +71,7 @@ class SupabaseService {
   }
 
   // ==============================================================================
-  // AUTHENTICATION METHODS (NEW)
+  // AUTHENTICATION METHODS
   // ==============================================================================
 
   async getSession() {
