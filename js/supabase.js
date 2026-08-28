@@ -12,20 +12,24 @@ class SupabaseService {
   }
 
   loadConfig() {
+    const defaultConfig = {
+      url: 'https://jcincpuxdvuegadlepzd.supabase.co',
+      anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpjaW5jcHV4ZHZ1ZWdhZGxlpzpkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODcyOTkxMzYsImV4cCI6MjEwMjg3NTEzNn0.q5S7lfEmjIrjtLG6QZKczPbJ6yJmPOM46PyoXC1TiJ8'
+    };
+
     const saved = localStorage.getItem('datary_supabase_config');
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
-        if (parsed.url && parsed.anonKey) return parsed;
+        if (parsed.url && parsed.anonKey && parsed.anonKey.length > 50) {
+          return parsed;
+        }
       } catch (e) {
         console.error('Failed to parse supabase config', e);
       }
     }
-
-    return {
-      url: 'https://jcincpuxdvuegadlepzd.supabase.co',
-      anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpjaW5jcHV4ZHZ1ZWdhZGxlpzpkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODcyOTkxMzYsImV4cCI6MjEwMjg3NTEzNn0.q5S7lfEmjIrjtLG6QZKczPbJ6yJmPOM46PyoXC1TiJ8'
-    };
+    
+    return defaultConfig;
   }
 
   saveConfig(url, anonKey) {
