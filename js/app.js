@@ -49,6 +49,7 @@ class App {
   }
 
   // --- AUTH GUARD: KUNCI HALAMAN JIKA BELUM LOGIN ---
+  // --- AUTH GUARD: KUNCI HALAMAN JIKA BELUM LOGIN ---
   checkAuthGuard() {
     const user = supabaseService.currentUser;
 
@@ -72,7 +73,7 @@ class App {
           </div>
         `;
 
-        // Daftarkan handler klik tombol guard
+        // Bind event handler tombol Masuk Sekarang
         setTimeout(() => {
           const guardBtn = document.getElementById('btn-guard-login');
           if (guardBtn) {
@@ -102,12 +103,6 @@ class App {
       }
 
       if (window.lucide) window.lucide.createIcons();
-
-      // 3. Otomatis Buka Modal Login Saat Pertama kali Buka Aplikasi
-      setTimeout(() => {
-        if (this.modalManager) this.modalManager.openAuthModal('login');
-      }, 300);
-
       return false;
     }
 

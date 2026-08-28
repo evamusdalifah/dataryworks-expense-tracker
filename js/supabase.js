@@ -22,8 +22,8 @@ class SupabaseService {
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
-        // Validasi: pastikan key tidak rusak dan tidak mengandung karakter tidak valid
-        if (parsed.url && parsed.anonKey && parsed.anonKey.length > 50 && !parsed.anonKey.includes(':')) {
+        // Validasi: Abaikan jika key rusak/terpotong
+        if (parsed.url && parsed.anonKey && parsed.anonKey.length > 80 && !parsed.anonKey.includes(':')) {
           return parsed;
         }
       } catch (e) {
