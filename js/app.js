@@ -343,10 +343,18 @@ class App {
         this.modalManager.openAuthModal('login');
       } else if (target.id === 'btn-user-logout' || target.closest('#btn-user-logout')) {
         if (confirm('Apakah Anda yakin ingin keluar dari akun ini?')) {
+          // 1. Hapus sesi dari Supabase Cloud
           await supabaseService.signOut();
+
+          // 2. Paksa kosongkan user aktif & bersihkan LocalStorage lokal
+          supabaseService.currentUser = null;
           if (typeof state.clearUserData === 'function') state.clearUserData();
+          
+          // 3. Tutup semua modal aktif jika ada
           this.modalManager.close();
-          await state.init();
+
+          // 4. Jalankan Auth Guard untuk kembali ke tampilan layar awal & pop-up login
+          this.checkAuthGuard();
         }
       }
 
