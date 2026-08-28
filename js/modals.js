@@ -1048,17 +1048,21 @@ export class ModalManager {
     }
   }
 
-  // --- 8. AUTHENTICATION MODAL (DIRECT DASHBOARD RENDER ON SUCCESS) ---
+  // --- 8. AUTHENTICATION MODAL (WITH LOGO & DIRECT DASHBOARD RENDER) ---
   openAuthModal(initialTab = 'login') {
     let isLogin = initialTab === 'login';
 
     const renderAuthContent = () => `
-      <div class="p-6 border-b border-slate-100 text-center">
+      <!-- HEADER MODAL AUTH (DENGAN LOGO DATARYWORKS) -->
+      <div class="p-6 border-b border-slate-100 text-center flex flex-col items-center">
+        <div class="w-12 h-12 rounded-2xl bg-emerald-800 text-white flex items-center justify-center font-bold shadow-md mb-3">
+          <i data-lucide="trending-up" class="w-6 h-6"></i>
+        </div>
         <h3 class="text-xl font-black text-slate-900 tracking-tight" id="auth-modal-title">
           ${isLogin ? 'Selamat Datang' : 'Buat Akun Baru'}
         </h3>
         <p class="text-xs text-slate-500 mt-1 font-medium">
-          ${isLogin ? 'Kelola keuangan pribadi Anda' : 'Mulai catat dan analisis keuangan Anda hari ini.'}
+          ${isLogin ? 'Kelola keuangan pribadi Anda di DataryWorks' : 'Mulai catat dan analisis keuangan Anda hari ini.'}
         </p>
       </div>
 
@@ -1151,7 +1155,6 @@ export class ModalManager {
           if (isLogin) {
             const res = await supabaseService.signIn(email, password);
             
-            // Tangkap error jika kredensial salah
             if (res && res.error) {
               throw new Error(res.error.message || 'Email atau password salah.');
             }
@@ -1159,14 +1162,9 @@ export class ModalManager {
             const activeUser = res?.user || res?.data?.user;
             if (activeUser) {
               supabaseService.currentUser = activeUser;
-              
-              // Load data user dari Supabase
               await this.state.init();
-              
-              // Tutup Modal Login
               this.close();
 
-              // Direct render ke Dashboard Utama
               if (window.app) {
                 if (typeof window.app.renderSidebar === 'function') window.app.renderSidebar();
                 if (typeof window.app.renderActiveView === 'function') window.app.renderActiveView();
