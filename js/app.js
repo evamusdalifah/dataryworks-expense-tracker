@@ -50,30 +50,30 @@ class App {
 
   // --- AUTH GUARD: KUNCI HALAMAN JIKA BELUM LOGIN ---
   // --- AUTH GUARD: KUNCI HALAMAN JIKA BELUM LOGIN ---
+  // --- AUTH GUARD: KUNCI HALAMAN DENGAN TAMPILAN DARK FULLPAGE ---
   checkAuthGuard() {
     const user = supabaseService.currentUser;
 
     if (!user) {
-      // 1. Render Layar Terkunci di Area Konten Utama
+      // 1. Ubah tampilan area utama menjadi Latar Gelap & Rapi
       const mainContent = document.getElementById('main-view-content');
       if (mainContent) {
         mainContent.innerHTML = `
-          <div class="flex flex-col items-center justify-center min-h-[60vh] text-center p-6 animate-fadeIn">
-            <div class="w-16 h-16 rounded-2xl bg-emerald-100 text-emerald-800 flex items-center justify-center mb-4 shadow-sm mx-auto">
-              <i data-lucide="lock" class="w-8 h-8"></i>
+          <div class="min-h-[75vh] flex flex-col items-center justify-center bg-[#0F172A] rounded-3xl border border-slate-800 p-8 text-center animate-fadeIn shadow-2xl my-4">
+            <div class="w-16 h-16 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center justify-center mb-5 shadow-lg mx-auto">
+              <i data-lucide="shield-check" class="w-8 h-8"></i>
             </div>
-            <h2 class="text-2xl font-black text-slate-900 mb-1 tracking-tight">Akses Terkunci</h2>
-            <p class="text-xs text-slate-500 max-w-sm mb-6 leading-relaxed">
-              Silakan masuk ke akun Anda terlebih dahulu untuk mengakses dashboard keuangan DataryWorks.
+            <h2 class="text-2xl font-black text-white mb-2 tracking-tight">Selamat Datang di DataryWorks</h2>
+            <p class="text-xs text-slate-400 max-w-md mb-6 leading-relaxed">
+              Akses dashboard portofolio dan manajemen keuangan pribadi Anda dengan aman.
             </p>
-            <button id="btn-guard-login" class="px-6 py-3 bg-emerald-800 hover:bg-emerald-900 text-white rounded-xl text-xs font-bold shadow-md transition flex items-center justify-center gap-2 cursor-pointer mx-auto">
+            <button id="btn-guard-login" class="px-7 py-3 bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-black rounded-xl text-xs shadow-lg shadow-emerald-500/20 transition flex items-center justify-center gap-2 cursor-pointer mx-auto">
               <i data-lucide="log-in" class="w-4 h-4"></i>
-              <span>Masuk Sekarang</span>
+              <span>Masuk ke Dashboard</span>
             </button>
           </div>
         `;
 
-        // Bind event handler tombol Masuk Sekarang
         setTimeout(() => {
           const guardBtn = document.getElementById('btn-guard-login');
           if (guardBtn) {
@@ -84,7 +84,7 @@ class App {
         }, 50);
       }
 
-      // 2. Reset/Sembunyikan Menu Sidebar
+      // 2. Reset Sidebar ke Mode Gelap Minimalis
       const sidebarEl = document.getElementById('sidebar-container');
       if (sidebarEl) {
         sidebarEl.innerHTML = `
