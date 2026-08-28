@@ -1048,21 +1048,28 @@ export class ModalManager {
     }
   }
 
-  // --- 8. AUTHENTICATION MODAL (WITH LOGO & DIRECT DASHBOARD RENDER) ---
+  // --- 8. AUTHENTICATION MODAL (WITH FULL BRANDING LOGO & TEXT) ---
   openAuthModal(initialTab = 'login') {
     let isLogin = initialTab === 'login';
 
     const renderAuthContent = () => `
-      <!-- HEADER MODAL AUTH (DENGAN LOGO DATARYWORKS) -->
+      <!-- HEADER MODAL AUTH (DENGAN LOGO + TULISAN DATARYWORKS EXPENSE TRACKER) -->
       <div class="p-6 border-b border-slate-100 text-center flex flex-col items-center">
-        <div class="w-12 h-12 rounded-2xl bg-emerald-800 text-white flex items-center justify-center font-bold shadow-md mb-3">
-          <i data-lucide="trending-up" class="w-6 h-6"></i>
+        <div class="flex items-center gap-3 mb-3">
+          <div class="w-10 h-10 rounded-xl bg-emerald-500 text-slate-950 flex items-center justify-center font-bold shadow-md shrink-0">
+            <i data-lucide="trending-up" class="w-6 h-6"></i>
+          </div>
+          <div class="text-left">
+            <div class="font-black text-lg text-slate-900 tracking-tight leading-none">DataryWorks</div>
+            <div class="text-[11px] font-bold text-emerald-600 mt-0.5">Expense Tracker</div>
+          </div>
         </div>
+
         <h3 class="text-xl font-black text-slate-900 tracking-tight" id="auth-modal-title">
           ${isLogin ? 'Selamat Datang' : 'Buat Akun Baru'}
         </h3>
         <p class="text-xs text-slate-500 mt-1 font-medium">
-          ${isLogin ? 'Kelola keuangan pribadi Anda di DataryWorks' : 'Mulai catat dan analisis keuangan Anda hari ini.'}
+          ${isLogin ? 'Kelola keuangan pribadi Anda' : 'Mulai catat dan analisis keuangan Anda hari ini.'}
         </p>
       </div>
 
