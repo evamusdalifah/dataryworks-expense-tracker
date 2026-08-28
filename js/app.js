@@ -282,14 +282,6 @@ class App {
                   CSV
                 </button>
               </div>
-
-              <button id="btn-supabase-config" class="w-full py-2 px-3 text-xs font-semibold rounded-xl border transition flex items-center justify-between gap-2 shadow-sm ${supabaseService.isConnected ? 'bg-emerald-950/40 border-emerald-700/50 text-emerald-400 hover:bg-emerald-900/40' : 'bg-slate-800 border-slate-700 text-slate-300 hover:bg-slate-700'}">
-                <div class="flex items-center gap-2">
-                  <div class="w-2 h-2 rounded-full ${supabaseService.isConnected ? 'bg-emerald-400 animate-pulse' : 'bg-slate-400'}"></div>
-                  <span>${supabaseService.isConnected ? 'Supabase Connected' : 'Connect Supabase'}</span>
-                </div>
-                <i data-lucide="settings" class="w-3.5 h-3.5 text-slate-400"></i>
-              </button>
             </div>
           </div>
         </div>
