@@ -1,5 +1,5 @@
 // ==============================================================================
-// DATARYWORKS EXPENSE TRACKER - MODALS MANAGER (WIDE LAYOUT & FIXED UPDATE)
+// DATARYWORKS EXPENSE TRACKER - MODALS MANAGER (FIXED AUTH & NO-CLOSE LOGIC)
 // ==============================================================================
 
 import { supabaseService } from './supabase.js';
@@ -22,7 +22,7 @@ export class ModalManager {
   open(contentHtml, maxWidth = 'max-w-lg') {
     if (!this.container) return;
     this.container.innerHTML = `
-      <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fadeIn">
+      <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-sm animate-fadeIn">
         <div class="bg-white rounded-3xl shadow-2xl border border-slate-200 w-full ${maxWidth} overflow-hidden animate-scaleIn max-h-[90vh] flex flex-col">
           ${contentHtml}
         </div>
@@ -578,7 +578,7 @@ export class ModalManager {
     }
   }
 
-  // --- 5. VIEW ALL TRANSACTIONS MODAL (WIDE LAYOUT & FAST RENDERING) ---
+  // --- 5. VIEW ALL TRANSACTIONS MODAL ---
   openViewAllTransactions() {
     let currentSearch = '';
     let currentType = 'all';
@@ -1048,16 +1048,13 @@ export class ModalManager {
     }
   }
 
-  // --- 8. AUTHENTICATION MODAL (LOGIN / REGISTER WITH EYE TOGGLE) ---
+  // --- 8. AUTHENTICATION MODAL (LOGIN / REGISTER FIXED VALIDATION) ---
   openAuthModal(initialTab = 'login') {
     let isLogin = initialTab === 'login';
 
     const renderAuthContent = () => `
-      <!-- HEADER MODAL AUTH (RATA TENGAH) -->
-      <div class="p-6 border-b border-slate-100 text-center relative">
-        <button class="btn-modal-close absolute right-5 top-5 text-slate-400 hover:text-slate-600 transition p-1.5 rounded-lg hover:bg-slate-100">
-          <i data-lucide="x" class="w-5 h-5"></i>
-        </button>
+      <!-- HEADER MODAL AUTH (TANPA TOMBOL X UNTUK TAMPILAN FULLSCREEN CLEAN) -->
+      <div class="p-6 border-b border-slate-100 text-center">
         <h3 class="text-xl font-black text-slate-900 tracking-tight" id="auth-modal-title">
           ${isLogin ? 'Selamat Datang' : 'Buat Akun Baru'}
         </h3>
@@ -1083,7 +1080,6 @@ export class ModalManager {
 
         <div>
           <label class="block text-xs font-semibold text-slate-700 mb-1">Password</label>
-          <!-- WRAPPER INPUT PASSWORD + IKON MATA -->
           <div class="relative">
             <input type="password" id="input-auth-password" required minlength="6" placeholder="••••••••" class="w-full px-3.5 py-2 pr-10 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-600">
             <button type="button" id="btn-toggle-password" class="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-emerald-800 transition p-1 rounded-lg">
@@ -1117,7 +1113,6 @@ export class ModalManager {
       const toggleBtn = document.getElementById('btn-toggle-auth-mode');
       const errorEl = document.getElementById('auth-error-message');
       
-      // TOGGLE PASSWORD VISIBILITY (IKON MATA)
       const btnTogglePass = document.getElementById('btn-toggle-password');
       const inputPass = document.getElementById('input-auth-password');
       const iconPass = document.getElementById('icon-toggle-password');
@@ -1142,32 +1137,47 @@ export class ModalManager {
 
       form?.addEventListener('submit', async (e) => {
         e.preventDefault();
-        errorEl.classList.add('hidden');
+        if (errorEl) errorEl.classList.add('hidden');
 
-        const email = document.getElementById('input-auth-email').value;
-        const password = document.getElementById('input-auth-password').value;
+        const email = document.getElementById('input-auth-email')?.value.trim();
+        const password = document.getElementById('input-auth-password')?.value;
         const name = document.getElementById('input-auth-name')?.value || '';
 
         const submitBtn = document.getElementById('btn-auth-submit');
-        submitBtn.disabled = true;
-        submitBtn.classList.add('opacity-50');
+        if (submitBtn) {
+          submitBtn.disabled = true;
+          submitBtn.classList.add('opacity-50');
+        }
 
         try {
           if (isLogin) {
-            await supabaseService.signIn(email, password);
+            // Lakukan login ke Supabase
+            const res = await supabaseService.signIn(email, password);
+            if (res && res.user) {
+              supabaseService.currentUser = res.user;
+              await this.state.init();
+              this.close(); // HANYA TUPUP MODAL JIKA RESPONS USER ADA
+            } else {
+              throw new Error('Gagal login. Kredensial tidak valid.');
+            }
           } else {
             await supabaseService.signUp(email, password, name);
-            alert('Pendaftaran berhasil! Silakan cek email Anda untuk verifikasi atau langsung login.');
+            alert('Pendaftaran berhasil! Silakan masuk menggunakan akun baru Anda.');
+            isLogin = true;
+            this.open(renderAuthContent(), 'max-w-md');
+            attachAuthEvents();
           }
-
-          await this.state.init();
-          this.close();
         } catch (err) {
-          errorEl.textContent = err.message || 'Terjadi kesalahan saat autentikasi.';
-          errorEl.classList.remove('hidden');
+          console.error('Auth error:', err);
+          if (errorEl) {
+            errorEl.textContent = err.message || 'Email atau password salah. Silakan coba lagi.';
+            errorEl.classList.remove('hidden');
+          }
         } finally {
-          submitBtn.disabled = false;
-          submitBtn.classList.remove('opacity-50');
+          if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.classList.remove('opacity-50');
+          }
         }
       });
     };

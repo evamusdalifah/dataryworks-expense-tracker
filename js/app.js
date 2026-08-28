@@ -48,8 +48,6 @@ class App {
     });
   }
 
-  // --- AUTH GUARD: KUNCI HALAMAN JIKA BELUM LOGIN ---
-  // --- AUTH GUARD: KUNCI HALAMAN JIKA BELUM LOGIN ---
   // --- AUTH GUARD: KUNCI HALAMAN DENGAN TAMPILAN DARK FULLPAGE ---
   checkAuthGuard() {
     const user = supabaseService.currentUser;
@@ -375,10 +373,8 @@ class App {
         if (confirm('Apakah Anda yakin ingin keluar dari akun ini?')) {
           await supabaseService.signOut();
           if (typeof state.clearUserData === 'function') state.clearUserData();
+          this.modalManager.close();
           await state.init();
-    
-          // Otomatis munculkan modal login setelah logout berhasil
-          this.modalManager.openAuthModal('login');
         }
       }
 
