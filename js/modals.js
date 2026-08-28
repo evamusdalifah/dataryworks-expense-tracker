@@ -1048,75 +1048,83 @@ export class ModalManager {
     }
   }
 
-  // --- 8. AUTHENTICATION MODAL (WITH FULL BRANDING LOGO & TEXT) ---
+  // --- 8. AUTHENTICATION MODAL (MATCHED DESIGN TO IMAGE) ---
   openAuthModal(initialTab = 'login') {
     let isLogin = initialTab === 'login';
 
     const renderAuthContent = () => `
-      <!-- HEADER MODAL AUTH (DENGAN LOGO + TULISAN DATARYWORKS EXPENSE TRACKER) -->
-      <div class="p-6 border-b border-slate-100 text-center flex flex-col items-center">
-        <div class="flex items-center gap-3 mb-3">
-          <div class="w-10 h-10 rounded-xl bg-emerald-500 text-slate-950 flex items-center justify-center font-bold shadow-md shrink-0">
-            <i data-lucide="trending-up" class="w-6 h-6"></i>
-          </div>
-          <div class="text-left">
-            <div class="font-black text-lg text-slate-900 tracking-tight leading-none">DataryWorks</div>
-            <div class="text-[11px] font-bold text-emerald-600 mt-0.5">Expense Tracker</div>
-          </div>
+      <!-- HEADER MODAL AUTH -->
+      <div class="p-6 pb-2 text-center flex flex-col items-center">
+        <!-- Circular Icon Badge -->
+        <div class="w-14 h-14 rounded-full bg-emerald-100/80 text-emerald-600 flex items-center justify-center mb-4 shadow-sm">
+          <i data-lucide="trending-up" class="w-7 h-7 stroke-[2.5]"></i>
         </div>
 
-        <h3 class="text-xl font-black text-slate-900 tracking-tight" id="auth-modal-title">
+        <h3 class="text-2xl font-black text-slate-900 tracking-tight mb-1" id="auth-modal-title">
           ${isLogin ? 'Selamat Datang' : 'Buat Akun Baru'}
         </h3>
-        <p class="text-xs text-slate-500 mt-1 font-medium">
-          ${isLogin ? 'Kelola keuangan pribadi Anda' : 'Mulai catat dan analisis keuangan Anda hari ini.'}
+        <p class="text-xs text-slate-500 font-medium leading-relaxed max-w-xs">
+          ${isLogin ? 'Kelola keuangan pribadi Anda di <br><span class="font-bold text-emerald-600">DataryWorks</span> Expense Tracker' : 'Mulai catat dan analisis keuangan Anda hari ini.'}
         </p>
+
+        <!-- Decorated Divider -->
+        <div class="relative w-full flex items-center justify-center my-5">
+          <div class="w-full border-t border-slate-100"></div>
+          <div class="absolute w-2 h-2 rounded-full bg-emerald-500"></div>
+        </div>
       </div>
 
-      <form id="form-auth" class="p-6 space-y-4 overflow-y-auto flex-1">
+      <form id="form-auth" class="px-6 pb-6 space-y-4 overflow-y-auto flex-1">
         <div id="auth-error-message" class="hidden p-3 bg-rose-50 border border-rose-200 rounded-xl text-xs font-semibold text-rose-700"></div>
 
         ${!isLogin ? `
           <div>
-            <label class="block text-xs font-semibold text-slate-700 mb-1">Nama Lengkap</label>
-            <input type="text" id="input-auth-name" required placeholder="John Doe" class="w-full px-3.5 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-600">
+            <label class="block text-xs font-bold text-slate-800 mb-1.5">Nama Lengkap</label>
+            <div class="relative">
+              <i data-lucide="user" class="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2"></i>
+              <input type="text" id="input-auth-name" required placeholder="John Doe" class="w-full pl-10 pr-3.5 py-2.5 text-xs bg-white border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-600 focus:border-transparent text-slate-800 font-medium placeholder:text-slate-400 transition shadow-sm">
+            </div>
           </div>
         ` : ''}
 
         <div>
-          <label class="block text-xs font-semibold text-slate-700 mb-1">Email</label>
-          <input type="email" id="input-auth-email" required placeholder="nama@email.com" class="w-full px-3.5 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-600">
+          <label class="block text-xs font-bold text-slate-800 mb-1.5">Email</label>
+          <div class="relative">
+            <i data-lucide="mail" class="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2"></i>
+            <input type="email" id="input-auth-email" required placeholder="nama@email.com" class="w-full pl-10 pr-3.5 py-2.5 text-xs bg-white border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-600 focus:border-transparent text-slate-800 font-medium placeholder:text-slate-400 transition shadow-sm">
+          </div>
         </div>
 
         <div>
-          <label class="block text-xs font-semibold text-slate-700 mb-1">Password</label>
+          <label class="block text-xs font-bold text-slate-800 mb-1.5">Password</label>
           <div class="relative">
-            <input type="password" id="input-auth-password" required minlength="6" placeholder="••••••••" class="w-full px-3.5 py-2 pr-10 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-600">
-            <button type="button" id="btn-toggle-password" class="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-emerald-800 transition p-1 rounded-lg">
+            <i data-lucide="lock" class="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2"></i>
+            <input type="password" id="input-auth-password" required minlength="6" placeholder="••••••••" class="w-full pl-10 pr-10 py-2.5 text-xs bg-white border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-600 focus:border-transparent text-slate-800 font-medium placeholder:text-slate-400 transition shadow-sm">
+            <button type="button" id="btn-toggle-password" class="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-emerald-700 transition p-1 rounded-lg">
               <i data-lucide="eye" id="icon-toggle-password" class="w-4 h-4"></i>
             </button>
           </div>
         </div>
 
         <div class="pt-2">
-          <button type="submit" id="btn-auth-submit" class="w-full py-2.5 text-xs font-bold text-white bg-emerald-800 hover:bg-emerald-900 rounded-xl shadow transition flex items-center justify-center gap-2">
-            <i data-lucide="${isLogin ? 'log-in' : 'user-plus'}" class="w-4 h-4"></i>
+          <button type="submit" id="btn-auth-submit" class="w-full py-3 text-xs font-bold text-white bg-[#065F46] hover:bg-[#044E38] rounded-xl shadow-md hover:shadow-lg transition flex items-center justify-center gap-2 cursor-pointer">
+            <i data-lucide="${isLogin ? 'arrow-right' : 'user-plus'}" class="w-4 h-4"></i>
             <span>${isLogin ? 'Masuk Sekarang' : 'Daftar Akun'}</span>
           </button>
         </div>
 
-        <div class="text-center pt-3 border-t border-slate-100">
-          <p class="text-xs text-slate-500">
+        <div class="text-center pt-4 border-t border-slate-100 mt-4">
+          <p class="text-xs text-slate-500 font-medium">
             ${isLogin ? 'Belum punya akun?' : 'Sudah punya akun?'}
-            <button type="button" id="btn-toggle-auth-mode" class="font-bold text-emerald-800 hover:underline ml-1">
-              ${isLogin ? 'Daftar di sini' : 'Masuk di sini'}
-            </button>
           </p>
+          <button type="button" id="btn-toggle-auth-mode" class="font-bold text-emerald-700 hover:text-emerald-800 text-xs mt-1 transition cursor-pointer">
+            ${isLogin ? 'Daftar di sini' : 'Masuk di sini'}
+          </button>
         </div>
       </form>
     `;
 
-    this.open(renderAuthContent(), 'max-w-md');
+    this.open(renderAuthContent(), 'max-w-sm');
 
     const attachAuthEvents = () => {
       const form = document.getElementById('form-auth');
@@ -1140,7 +1148,7 @@ export class ModalManager {
 
       toggleBtn?.addEventListener('click', () => {
         isLogin = !isLogin;
-        this.open(renderAuthContent(), 'max-w-md');
+        this.open(renderAuthContent(), 'max-w-sm');
         attachAuthEvents();
       });
 
@@ -1187,7 +1195,7 @@ export class ModalManager {
             }
             alert('Pendaftaran berhasil! Silakan masuk dengan akun Anda.');
             isLogin = true;
-            this.open(renderAuthContent(), 'max-w-md');
+            this.open(renderAuthContent(), 'max-w-sm');
             attachAuthEvents();
           }
         } catch (err) {
