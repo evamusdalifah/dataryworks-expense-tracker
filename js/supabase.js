@@ -228,7 +228,7 @@ class SupabaseService {
       }
 
       return (dedicatedGoals || []).map(g => {
-        const baseSaved = Number(g.saved_amount || 0);
+        const baseSaved = Number(g.saved_amount || g.current_amount || 0);
         const trxSaved = savedMap[g.name] || 0;
         const totalSaved = Math.max(baseSaved, trxSaved);
         const targetAmount = Number(g.target_amount || 0);
@@ -238,6 +238,7 @@ class SupabaseService {
           name: g.name,
           targetAmount,
           savedAmount: totalSaved,
+          deadline: g.deadline || null,
           status: totalSaved >= targetAmount ? 'Selesai' : (g.status || 'On Track'),
           icon: g.icon || 'Target',
           color: g.color || '#198754'
@@ -261,6 +262,8 @@ class SupabaseService {
         name: goalData.name,
         target_amount: targetAmt,
         saved_amount: savedAmt,
+        current_amount: savedAmt,
+        deadline: goalData.deadline || null,
         status: savedAmt >= targetAmt ? 'Selesai' : 'On Track',
         icon: goalData.icon || 'Target',
         color: goalData.color || '#198754'
@@ -275,7 +278,7 @@ class SupabaseService {
       return { success: true, data: data[0] };
     } catch (err) {
       console.error('Gagal tambah target tabungan ke Supabase:', err);
-      return { success: false, error: err.message };
+      throw err;
     }
   }
 

@@ -304,11 +304,26 @@ class App {
   }
 
   attachSidebarEvents() {
-    document.getElementById('nav-overview')?.addEventListener('click', () => state.setActiveTab('overview'));
-    document.getElementById('nav-income-expense')?.addEventListener('click', () => state.setActiveTab('incomeVsExpense'));
-    document.getElementById('nav-category-analysis')?.addEventListener('click', () => state.setActiveTab('categoryAnalysis'));
-    document.getElementById('nav-saving-goals')?.addEventListener('click', () => state.setActiveTab('savingGoals'));
+    // Gunakan Delegation Event Handler untuk tombol navigasi
+    const navOverview = document.getElementById('nav-overview');
+    const navIncExp = document.getElementById('nav-income-expense');
+    const navCat = document.getElementById('nav-category-analysis');
+    const navGoals = document.getElementById('nav-saving-goals');
 
+    if (navOverview) {
+      navOverview.onclick = () => state.setActiveTab('overview');
+    }
+    if (navIncExp) {
+      navIncExp.onclick = () => state.setActiveTab('incomeVsExpense');
+    }
+    if (navCat) {
+      navCat.onclick = () => state.setActiveTab('categoryAnalysis');
+    }
+    if (navGoals) {
+      navGoals.onclick = () => state.setActiveTab('savingGoals');
+    }
+
+    // Filter Tipe Transaksi (Expense / Income)
     document.getElementById('filter-toggle-expense')?.addEventListener('click', () => {
       state.analysisType = 'expense';
       const firstCat = (state.categories || []).find(c => c.type === 'expense');
@@ -323,13 +338,20 @@ class App {
       state.notify();
     });
 
+    // Filter Dropdown
     document.getElementById('filter-year')?.addEventListener('change', (e) => {
       state.setFilter('selectedYear', Number(e.target.value));
     });
 
-    document.getElementById('filter-month')?.addEventListener('change', (e) => state.setFilter('selectedMonth', Number(e.target.value)));
-    document.getElementById('filter-category')?.addEventListener('change', (e) => state.setFilter('selectedCategory', e.target.value));
+    document.getElementById('filter-month')?.addEventListener('change', (e) => {
+      state.setFilter('selectedMonth', Number(e.target.value));
+    });
 
+    document.getElementById('filter-category')?.addEventListener('change', (e) => {
+      state.setFilter('selectedCategory', e.target.value);
+    });
+
+    // Export Buttons
     document.getElementById('btn-export-pdf')?.addEventListener('click', () => exportToPDF(state));
     document.getElementById('btn-export-csv')?.addEventListener('click', () => exportToCSV(state));
   }

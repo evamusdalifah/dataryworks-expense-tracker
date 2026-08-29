@@ -439,7 +439,7 @@ export class ModalManager {
           <button type="button" class="btn-modal-close px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-xl transition">
             Batal
           </button>
-          <button type="submit" class="px-5 py-2.5 text-xs font-bold text-white bg-emerald-800 hover:bg-emerald-900 rounded-xl shadow transition">
+          <button type="submit" id="btn-submit-goal" class="px-5 py-2.5 text-xs font-bold text-white bg-emerald-800 hover:bg-emerald-900 rounded-xl shadow transition">
             Simpan Target
           </button>
         </div>
@@ -453,35 +453,29 @@ export class ModalManager {
       form.addEventListener('submit', async (e) => {
         e.preventDefault();
 
-        const name = document.getElementById('input-goal-name').value;
+        const submitBtn = document.getElementById('btn-submit-goal');
+        if (submitBtn) {
+          submitBtn.disabled = true;
+          submitBtn.textContent = 'Menyimpan...';
+        }
+
+        const name = document.getElementById('input-goal-name').value.trim();
         const targetAmount = Number(document.getElementById('input-goal-target').value) || 0;
         const savedAmount = Number(document.getElementById('input-goal-saved').value) || 0;
         const deadline = document.getElementById('input-goal-deadline').value;
         const icon = document.getElementById('input-goal-icon').value;
 
-        if (typeof this.state.addGoal === 'function') {
+        try {
           await this.state.addGoal({ name, targetAmount, savedAmount, deadline, icon });
-        } else {
-          const newGoal = {
-            id: 'goal_' + Date.now(),
-            name,
-            targetAmount,
-            savedAmount,
-            deadline,
-            icon,
-            status: savedAmount >= targetAmount ? 'Selesai' : 'On Track'
-          };
-          if (!this.state.savingGoals) this.state.savingGoals = [];
-          this.state.savingGoals.push(newGoal);
-
-          const localGoals = JSON.parse(localStorage.getItem('datary_saving_goals') || '[]');
-          localGoals.push(newGoal);
-          localStorage.setItem('datary_saving_goals', JSON.stringify(localGoals));
-
-          if (typeof this.state.notify === 'function') this.state.notify();
+          this.close();
+        } catch (err) {
+          alert('Gagal menyimpan target: ' + err.message);
+        } finally {
+          if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.textContent = 'Simpan Target';
+          }
         }
-
-        this.close();
       });
     }
   }
@@ -1182,7 +1176,6 @@ export class ModalManager {
 
               if (window.app) {
                 if (typeof window.app.renderSidebar === 'function') window.app.renderSidebar();
-                if (typeof window.app.attachSidebarEvents === 'function') window.app.attachSidebarEvents(); // <- MENAMBAHKAN KEMBALI LISTENER KLIK SIDEBAR
                 if (typeof window.app.renderActiveView === 'function') window.app.renderActiveView();
                 if (typeof window.app.updateFilterDropdownsUI === 'function') window.app.updateFilterDropdownsUI();
               }

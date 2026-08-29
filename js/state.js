@@ -202,23 +202,21 @@ class AppState {
       name: goalData.name,
       targetAmount,
       savedAmount,
-      deadline: goalData.deadline || '2026-12-31',
+      deadline: goalData.deadline || null,
       icon: goalData.icon || 'Target',
       color: goalData.color || '#047857',
       status: savedAmount >= targetAmount ? 'Selesai' : 'On Track'
     };
 
-    this.savingGoals.push(newGoal);
-    this.touchUpdated();
-
-    if (supabaseService && supabaseService.isConnected) {
-      try {
-        await supabaseService.addSavingGoal(newGoal);
-      } catch (e) {
-        console.warn('Gagal simpan goal ke Supabase:', e);
+    if (supabaseService && supabaseService.isConnected && supabaseService.currentUser) {
+      const res = await supabaseService.addSavingGoal(newGoal);
+      if (res && res.data) {
+        newGoal.id = res.data.id;
       }
     }
 
+    this.savingGoals.push(newGoal);
+    this.touchUpdated();
     this.notify();
     return newGoal;
   }
@@ -259,9 +257,9 @@ class AppState {
   }
 
   // --- QUERY & METRIC HELPERS ---
-  formatRupiah(num) {
-    if (isNaN(num) || num === null || num === undefined) return 'Rp0';
-    return 'Rp' + Number(num).toLocaleString('id-ID');
+  formatRupiah(amount) {
+    const num = Number(amount) || 0;
+    return 'Rp ' + num.toLocaleString('id-ID'); // Menambahkan kembali spasi setelah Rp
   }
 
   formatShortRupiah(num) {
