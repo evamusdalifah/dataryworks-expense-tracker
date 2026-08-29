@@ -26,13 +26,12 @@ class App {
     await state.init();
     this.attachGlobalEvents();
 
-    const isAuthenticated = this.checkAuthGuard();
-    if (!isAuthenticated) return;
-
-    this.renderSidebar();
-    this.renderActiveView();
-    this.updateFilterDropdownsUI();
-
+    // PENTING: subscribe() didaftarkan SEBELUM pengecekan auth guard,
+    // supaya listener ini tetap aktif walau user belum login saat pertama kali
+    // membuka halaman. Sebelumnya, subscribe() ada SETELAH early-return,
+    // sehingga kalau user belum login, listener tidak pernah terdaftar --
+    // akibatnya setelah login/daftar akun, klik menu sidebar tidak memicu
+    // render ulang sampai halaman di-reload manual.
     state.subscribe(() => {
       if (this.checkAuthGuard()) {
         this.renderSidebar();
@@ -40,6 +39,13 @@ class App {
         this.updateFilterDropdownsUI();
       }
     });
+
+    const isAuthenticated = this.checkAuthGuard();
+    if (!isAuthenticated) return;
+
+    this.renderSidebar();
+    this.renderActiveView();
+    this.updateFilterDropdownsUI();
   }
 
   // --- AUTH GUARD: DIRECT LOGIN POPUP ON DARK BACKGROUND ---
