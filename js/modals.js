@@ -1209,4 +1209,55 @@ export class ModalManager {
 
     attachAuthEvents();
   }
+
+  // --- KONFIRMASI LOGOUT (Custom, menggantikan window.confirm) ---
+  openLogoutConfirm(onConfirm) {
+    const html = `
+      <div class="p-6 text-center flex flex-col items-center">
+        <div class="w-14 h-14 rounded-full bg-rose-100/80 text-rose-600 flex items-center justify-center mb-4 shadow-sm">
+          <i data-lucide="log-out" class="w-7 h-7 stroke-[2.5]"></i>
+        </div>
+
+        <h3 class="text-lg font-black text-slate-900 tracking-tight mb-1">
+          Datary Expense Tracker
+        </h3>
+        <p class="text-xs text-slate-500 font-medium leading-relaxed max-w-xs mb-6">
+          Apakah anda yakin ingin keluar?
+        </p>
+
+        <div class="flex items-center justify-center gap-3 w-full">
+          <button id="btn-logout-cancel" class="flex-1 px-4 py-2.5 text-xs font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-xl transition">
+          Batal
+          </button>
+          <button id="btn-logout-confirm" class="flex-1 px-4 py-2.5 text-xs font-bold text-white bg-rose-600 hover:bg-rose-700 rounded-xl shadow transition">
+            Ya, Keluar
+          </button>
+        </div>
+      </div>
+    `;
+
+    this.open(html, 'max-w-sm');
+
+    document.getElementById('btn-logout-confirm')?.addEventListener('click', async () => {
+      const btn = document.getElementById('btn-logout-confirm');
+      const btnCancel = document.getElementById('btn-logout-cancel');
+
+      // Jangan close() dulu — tampilkan loading state di dalam modal yang sama
+      // biar background tetap gelap terus, nggak ada momen dashboard nongol lagi
+      if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = 'Memproses...';
+      }
+      if (btnCancel) btnCancel.disabled = true;
+
+      if (typeof onConfirm === 'function') await onConfirm();
+
+      // PENTING: this.close() TIDAK dipanggil di sini.
+      // onConfirm() sudah memanggil checkAuthGuard() di app.js, yang otomatis
+      // membuka modal login baru lewat openAuthModal(). Modal login itu
+      // mengganti isi #modal-container lewat this.open(). Kalau close()
+      // dipanggil setelahnya, modal login yang baru saja tampil akan
+      // langsung dikosongkan lagi -> inilah salah satu penyebab "kedip".
+    });
+  }
 }
