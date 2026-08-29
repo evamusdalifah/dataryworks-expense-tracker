@@ -469,7 +469,7 @@ export class ModalManager {
           await this.state.addGoal({ name, targetAmount, savedAmount, deadline, icon });
           this.close();
         } catch (err) {
-          alert('Gagal menyimpan target: ' + err.message);
+          this.openErrorModal('Gagal menyimpan target: ' + err.message, () => this.openAddGoal());
         } finally {
           if (submitBtn) {
             submitBtn.disabled = false;
@@ -954,7 +954,7 @@ export class ModalManager {
             .eq('id', trxId);
 
           if (error) {
-            alert('Gagal menyimpan ke Supabase: ' + error.message);
+            this.openErrorModal('Gagal menyimpan ke Supabase: ' + error.message, () => this.openEditTransaction(trxId));
             return;
           }
         }
@@ -1187,10 +1187,16 @@ export class ModalManager {
             if (res && res.error) {
               throw new Error(res.error.message);
             }
-            alert('Pendaftaran berhasil! Silakan masuk dengan akun Anda.');
-            isLogin = true;
-            this.open(renderAuthContent(), 'max-w-sm');
-            attachAuthEvents();
+            this.openSuccessModal(
+              `Kami sudah mengirim email verifikasi ke <strong>${email}</strong>. Silakan cek inbox (atau folder spam) dan klik link verifikasi sebelum masuk.`,
+              () => {
+                isLogin = true;
+                this.open(renderAuthContent(), 'max-w-sm');
+                attachAuthEvents();
+              },
+              'mail-check',
+              'Pendaftaran Berhasil!'
+            );
           }
         } catch (err) {
           console.error('Auth error:', err);
@@ -1208,6 +1214,70 @@ export class ModalManager {
     };
 
     attachAuthEvents();
+  }
+
+  // --- NOTIFIKASI SUKSES (Custom, menggantikan window.alert) ---
+  openSuccessModal(message, onContinue, icon = 'check-circle-2', title = 'Berhasil!') {
+    const html = `
+      <div class="p-6 text-center flex flex-col items-center">
+        <div class="w-14 h-14 rounded-full bg-emerald-100/80 text-emerald-600 flex items-center justify-center mb-4 shadow-sm">
+          <i data-lucide="${icon}" class="w-7 h-7 stroke-[2.5]"></i>
+        </div>
+
+        <h3 class="text-lg font-black text-slate-900 tracking-tight mb-1">
+          ${title}
+        </h3>
+        <p class="text-xs text-slate-500 font-medium leading-relaxed max-w-xs mb-6">
+          ${message}
+        </p>
+
+        <button id="btn-success-ok" class="w-full px-4 py-2.5 text-xs font-bold text-white bg-emerald-700 hover:bg-emerald-800 rounded-xl shadow transition">
+          OK
+        </button>
+      </div>
+    `;
+
+    this.open(html, 'max-w-sm');
+
+    document.getElementById('btn-success-ok')?.addEventListener('click', () => {
+      if (typeof onContinue === 'function') {
+        onContinue();
+      } else {
+        this.close();
+      }
+    });
+  }
+
+  // --- NOTIFIKASI ERROR (Custom, menggantikan window.alert) ---
+  openErrorModal(message, onContinue) {
+    const html = `
+      <div class="p-6 text-center flex flex-col items-center">
+        <div class="w-14 h-14 rounded-full bg-rose-100/80 text-rose-600 flex items-center justify-center mb-4 shadow-sm">
+          <i data-lucide="alert-triangle" class="w-7 h-7 stroke-[2.5]"></i>
+        </div>
+
+        <h3 class="text-lg font-black text-slate-900 tracking-tight mb-1">
+          Gagal
+        </h3>
+        <p class="text-xs text-slate-500 font-medium leading-relaxed max-w-xs mb-6">
+          ${message}
+        </p>
+
+        <button id="btn-error-ok" class="w-full px-4 py-2.5 text-xs font-bold text-white bg-rose-600 hover:bg-rose-700 rounded-xl shadow transition">
+          Mengerti
+        </button>
+      </div>
+    `;
+
+    this.open(html, 'max-w-sm');
+
+    document.getElementById('btn-error-ok')?.addEventListener('click', () => {
+      if (typeof onContinue === 'function') {
+        onContinue();
+      } else {
+        this.close();
+      }
+    });
   }
 
   // --- KONFIRMASI LOGOUT (Custom, menggantikan window.confirm) ---
