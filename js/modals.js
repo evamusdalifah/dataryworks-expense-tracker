@@ -1,5 +1,5 @@
 // ==============================================================================
-// DATARYWORKS EXPENSE TRACKER - MODALS MANAGER (FIXED AUTH & NO-CLOSE LOGIC)
+// DATARYWORKS EXPENSE TRACKER - MODALS MANAGER (WITH SUBSCRIPTION & READ-ONLY GUARD)
 // ==============================================================================
 
 import { supabaseService } from './supabase.js';
@@ -38,6 +38,51 @@ export class ModalManager {
     btnCloses.forEach(btn => btn.addEventListener('click', () => this.close()));
   }
 
+  // --- CEK DAN CEGAH AKSES JIKA AKUN DALAM MODE READ-ONLY / EXPIRED ---
+  checkReadOnlyGuard() {
+    const sub = typeof this.state.getSubscriptionInfo === 'function' 
+      ? this.state.getSubscriptionInfo() 
+      : { isReadonly: false };
+
+    if (sub.isReadonly) {
+      this.openReadOnlyAlertModal();
+      return true; // Returns true jika Read-only (diblokir)
+    }
+    return false;
+  }
+
+  openReadOnlyAlertModal() {
+    const html = `
+      <div class="p-6 text-center flex flex-col items-center">
+        <div class="w-14 h-14 rounded-full bg-rose-100 text-rose-600 flex items-center justify-center mb-4 shadow-sm">
+          <i data-lucide="lock" class="w-7 h-7 stroke-[2.5]"></i>
+        </div>
+
+        <h3 class="text-xl font-black text-slate-900 tracking-tight mb-1">
+          🔒 Mode Read-only
+        </h3>
+        <p class="text-xs text-slate-500 font-medium leading-relaxed max-w-xs mb-6">
+          Langganan Anda telah berakhir. Data keuangan Anda tetap aman dan dapat dilihat kapan saja. Aktifkan langganan untuk menambah, mengedit, atau menghapus transaksi.
+        </p>
+
+        <div class="flex items-center justify-center gap-3 w-full">
+          <button class="btn-modal-close flex-1 px-4 py-2.5 text-xs font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-xl transition">
+            Nanti Saja
+          </button>
+          <button id="btn-modal-activate-sub" class="flex-1 px-4 py-2.5 text-xs font-bold text-white bg-emerald-700 hover:bg-emerald-800 rounded-xl shadow transition">
+            Aktifkan Kembali — Rp30.000/bulan
+          </button>
+        </div>
+      </div>
+    `;
+
+    this.open(html, 'max-w-sm');
+
+    document.getElementById('btn-modal-activate-sub')?.addEventListener('click', () => {
+      this.openPaymentModal();
+    });
+  }
+
   getActiveSavingGoals() {
     return (this.state.savingGoals || []).filter(g => {
       const targetAmt = Number(g.targetAmount || g.target_amount || 0);
@@ -49,6 +94,8 @@ export class ModalManager {
 
   // --- 1. ADD TRANSACTION MODAL ---
   openAddTransaction(defaultType = 'expense') {
+    if (this.checkReadOnlyGuard()) return;
+
     this.activeType = defaultType;
 
     const html = `
@@ -205,7 +252,7 @@ export class ModalManager {
         if (this.activeType === 'saving') {
           const goalSelect = document.getElementById('input-trx-goal');
           if (!goalSelect || !goalSelect.value) {
-            alert('Silakan pilih target tabungan yang masih aktif.');
+            this.openErrorModal('Silakan pilih target tabungan yang masih aktif.', () => this.openAddTransaction('saving'));
             return;
           }
           goalId = goalSelect.value;
@@ -256,6 +303,8 @@ export class ModalManager {
 
   // --- 2. CATEGORY MANAGER MODAL ---
   openCategoryManager() {
+    if (this.checkReadOnlyGuard()) return;
+
     const categories = this.state.categories || [];
 
     const html = `
@@ -389,6 +438,8 @@ export class ModalManager {
 
   // --- 3. ADD SAVING GOAL MODAL ---
   openAddGoal() {
+    if (this.checkReadOnlyGuard()) return;
+
     const html = `
       <div class="p-6 border-b border-slate-100 flex items-center justify-between">
         <div>
@@ -482,6 +533,8 @@ export class ModalManager {
 
   // --- 4. ADD CONTRIBUTION MODAL ---
   openAddContribution() {
+    if (this.checkReadOnlyGuard()) return;
+
     const activeGoals = this.getActiveSavingGoals();
 
     const html = `
@@ -542,7 +595,7 @@ export class ModalManager {
         e.preventDefault();
         const goalSelect = document.getElementById('input-contrib-goal');
         if (!goalSelect || !goalSelect.value) {
-          alert('Silakan pilih target tabungan yang masih aktif.');
+          this.openErrorModal('Silakan pilih target tabungan yang masih aktif.', () => this.openAddContribution());
           return;
         }
 
@@ -825,6 +878,7 @@ export class ModalManager {
       const editBtn = e.target.closest('[data-edit-id]');
 
       if (deleteBtn) {
+        if (this.checkReadOnlyGuard()) return;
         const id = deleteBtn.getAttribute('data-delete-id');
         if (confirm('Hapus transaksi ini?')) {
           await this.state.deleteTransaction(id);
@@ -833,6 +887,7 @@ export class ModalManager {
       }
 
       if (editBtn) {
+        if (this.checkReadOnlyGuard()) return;
         const id = editBtn.getAttribute('data-edit-id');
         this.openEditTransaction(id);
       }
@@ -841,6 +896,8 @@ export class ModalManager {
 
   // --- 6. MODAL EDIT TRANSAKSI ---
   openEditTransaction(trxId) {
+    if (this.checkReadOnlyGuard()) return;
+
     const trx = (this.state.transactions || []).find(t => String(t.id) === String(trxId));
     if (!trx) return;
 
@@ -1042,14 +1099,12 @@ export class ModalManager {
     }
   }
 
-  // --- 8. AUTHENTICATION MODAL (MATCHED DESIGN TO IMAGE) ---
+  // --- 8. AUTHENTICATION MODAL ---
   openAuthModal(initialTab = 'login') {
     let isLogin = initialTab === 'login';
 
     const renderAuthContent = () => `
-      <!-- HEADER MODAL AUTH -->
       <div class="p-6 pb-2 text-center flex flex-col items-center">
-        <!-- Circular Icon Badge -->
         <div class="w-14 h-14 rounded-full bg-emerald-100/80 text-emerald-600 flex items-center justify-center mb-4 shadow-sm">
           <i data-lucide="trending-up" class="w-7 h-7 stroke-[2.5]"></i>
         </div>
@@ -1061,7 +1116,6 @@ export class ModalManager {
           ${isLogin ? 'Kelola keuangan pribadi Anda di <br><span class="font-bold text-emerald-600">DataryWorks</span> Expense Tracker' : 'Mulai catat dan analisis keuangan Anda hari ini.'}
         </p>
 
-        <!-- Decorated Divider -->
         <div class="relative w-full flex items-center justify-center my-5">
           <div class="w-full border-t border-slate-100"></div>
           <div class="absolute w-2 h-2 rounded-full bg-emerald-500"></div>
@@ -1216,7 +1270,7 @@ export class ModalManager {
     attachAuthEvents();
   }
 
-  // --- NOTIFIKASI SUKSES (Custom, menggantikan window.alert) ---
+  // --- NOTIFIKASI SUKSES ---
   openSuccessModal(message, onContinue, icon = 'check-circle-2', title = 'Berhasil!') {
     const html = `
       <div class="p-6 text-center flex flex-col items-center">
@@ -1248,7 +1302,7 @@ export class ModalManager {
     });
   }
 
-  // --- NOTIFIKASI ERROR (Custom, menggantikan window.alert) ---
+  // --- NOTIFIKASI ERROR ---
   openErrorModal(message, onContinue) {
     const html = `
       <div class="p-6 text-center flex flex-col items-center">
@@ -1280,7 +1334,7 @@ export class ModalManager {
     });
   }
 
-  // --- KONFIRMASI LOGOUT (Custom, menggantikan window.confirm) ---
+  // --- KONFIRMASI LOGOUT ---
   openLogoutConfirm(onConfirm) {
     const html = `
       <div class="p-6 text-center flex flex-col items-center">
@@ -1296,8 +1350,8 @@ export class ModalManager {
         </p>
 
         <div class="flex items-center justify-center gap-3 w-full">
-          <button id="btn-logout-cancel" class="flex-1 px-4 py-2.5 text-xs font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-xl transition">
-          Batal
+          <button id="btn-logout-cancel" class="btn-modal-close flex-1 px-4 py-2.5 text-xs font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-xl transition">
+            Batal
           </button>
           <button id="btn-logout-confirm" class="flex-1 px-4 py-2.5 text-xs font-bold text-white bg-rose-600 hover:bg-rose-700 rounded-xl shadow transition">
             Ya, Keluar
@@ -1312,8 +1366,6 @@ export class ModalManager {
       const btn = document.getElementById('btn-logout-confirm');
       const btnCancel = document.getElementById('btn-logout-cancel');
 
-      // Jangan close() dulu — tampilkan loading state di dalam modal yang sama
-      // biar background tetap gelap terus, nggak ada momen dashboard nongol lagi
       if (btn) {
         btn.disabled = true;
         btn.innerHTML = 'Memproses...';
@@ -1321,13 +1373,84 @@ export class ModalManager {
       if (btnCancel) btnCancel.disabled = true;
 
       if (typeof onConfirm === 'function') await onConfirm();
+    });
+  }
 
-      // PENTING: this.close() TIDAK dipanggil di sini.
-      // onConfirm() sudah memanggil checkAuthGuard() di app.js, yang otomatis
-      // membuka modal login baru lewat openAuthModal(). Modal login itu
-      // mengganti isi #modal-container lewat this.open(). Kalau close()
-      // dipanggil setelahnya, modal login yang baru saja tampil akan
-      // langsung dikosongkan lagi -> inilah salah satu penyebab "kedip".
+  // --- PEMBAYARAN LANGGANAN & KONFIRMASI WHATSAPP ---
+  openPaymentModal() {
+    const user = supabaseService.currentUser;
+    const userName = user?.user_metadata?.full_name || 'User DataryWorks';
+    const userEmail = user?.email || '-';
+
+    const html = `
+      <div class="p-6 border-b border-slate-100 flex items-center justify-between">
+        <div>
+          <h3 class="text-lg font-bold text-slate-900">Pembayaran Langganan</h3>
+          <p class="text-xs text-slate-500 mt-0.5">Biaya Berlangganan: <span class="font-bold text-emerald-600">Rp30.000 / bulan</span></p>
+        </div>
+        <button class="btn-modal-close text-slate-400 hover:text-slate-600 p-1.5 rounded-lg hover:bg-slate-100">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <div class="p-6 space-y-4 text-xs text-slate-700 overflow-y-auto max-h-[70vh]">
+        <p class="font-semibold text-slate-800">Pilih Metode Pembayaran Transfer:</p>
+        
+        <div class="space-y-2">
+          <div class="p-3 border border-slate-200 rounded-xl bg-slate-50 flex justify-between items-center">
+            <div>
+              <p class="font-bold text-slate-900">🏦 Bank Mandiri</p>
+              <p class="text-slate-500 text-[11px]">No. Rek: <span class="font-mono font-bold text-slate-800">123-00-101010-1</span> a/n Eva Musdalifah</p>
+            </div>
+          </div>
+
+          <div class="p-3 border border-slate-200 rounded-xl bg-slate-50 flex justify-between items-center">
+            <div>
+              <p class="font-bold text-slate-900">🟧 ShopeePay</p>
+              <p class="text-slate-500 text-[11px]">No. HP: <span class="font-mono font-bold text-slate-800">0812-3456-7890</span></p>
+            </div>
+          </div>
+
+          <div class="p-3 border border-slate-200 rounded-xl bg-slate-50 flex justify-between items-center">
+            <div>
+              <p class="font-bold text-slate-900">💜 OVO</p>
+              <p class="text-slate-500 text-[11px]">No. HP: <span class="font-mono font-bold text-slate-800">0812-3456-7890</span></p>
+            </div>
+          </div>
+        </div>
+
+        <form id="form-confirm-payment" class="pt-3 border-t border-slate-100 space-y-3">
+          <div>
+            <label class="block text-xs font-semibold mb-1">Nama / Bank Pembayar (No. Rekening Anda)</label>
+            <input type="text" id="pay-sender-info" required placeholder="Contoh: Mandiri 137000123xx / A.N Budi" class="w-full px-3.5 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-600">
+          </div>
+
+          <button type="submit" class="w-full py-3 bg-emerald-800 hover:bg-emerald-900 text-white font-bold rounded-xl shadow transition flex items-center justify-center gap-2">
+            <i data-lucide="message-circle" class="w-4 h-4"></i>
+            Konfirmasi Pembayaran via WhatsApp
+          </button>
+        </form>
+      </div>
+    `;
+
+    this.open(html, 'max-w-md');
+
+    document.getElementById('form-confirm-payment')?.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const senderInfo = document.getElementById('pay-sender-info').value.trim();
+      const adminWA = '62895703185590';
+
+      const nowStr = new Date().toLocaleString('id-ID');
+      const textMessage = `Halo Admin DataryWorks,%0A%0A` +
+        `Saya ingin konfirmasi pembayaran langganan:%0A` +
+        `- *Waktu*: ${encodeURIComponent(nowStr)}%0A` +
+        `- *Nama*: ${encodeURIComponent(userName)}%0A` +
+        `- *Email*: ${encodeURIComponent(userEmail)}%0A` +
+        `- *Rekening/Metode Pembayaran*: ${encodeURIComponent(senderInfo)}%0A%0A` +
+        `Mohon untuk diaktifkan status Premium akun saya. Terima kasih!`;
+
+      window.open(`https://wa.me/${adminWA}?text=${textMessage}`, '_blank');
+      this.close();
     });
   }
 }

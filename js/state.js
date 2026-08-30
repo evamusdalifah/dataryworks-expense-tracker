@@ -575,6 +575,30 @@ class AppState {
     return trendData;
   }
 
+  getSubscriptionInfo() {
+    const user = supabaseService.currentUser;
+    if (!user) return { status: 'expired', daysLeft: 0, isReadonly: true };
+
+    // Ambil data metadata user
+    const status = user.user_metadata?.subscription_status || 'trial'; // 'trial' | 'premium' | 'expired'
+    const createdAt = new Date(user.created_at || Date.now());
+    const endDate = new Date(createdAt.getTime() + (30 * 24 * 60 * 60 * 1000)); // 30 hari trial
+    
+    const now = new Date();
+    const diffTime = endDate - now;
+    const daysLeft = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+    if (status === 'premium') {
+      return { status: 'premium', daysLeft: 999, isReadonly: false };
+    }
+
+    if (daysLeft <= 0 || status === 'expired') {
+      return { status: 'expired', daysLeft: 0, isReadonly: true };
+    }
+
+    return { status: 'trial', daysLeft, isReadonly: false };
+  }
+
   async deleteGoal(id, name) {
     this.savingGoals = this.savingGoals.filter(g => String(g.id) !== String(id) && g.name !== name);
     this.touchUpdated();
