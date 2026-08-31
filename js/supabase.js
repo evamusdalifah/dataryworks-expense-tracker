@@ -436,12 +436,17 @@ class SupabaseService {
   // ==============================================================================
 
   async fetchCategories() {
-    if (!this.client) return null;
+    if (!this.client || !this.currentUser) return null;
     try {
+      // PENTING: filter supaya hanya kategori GLOBAL (user_id NULL, bawaan sistem)
+      // + kategori milik user sendiri yang ikut ter-fetch. Sebelumnya query ini
+      // tidak difilter sama sekali, sehingga kategori custom milik satu user
+      // bocor dan ikut muncul di akun user lain.
       const { data, error } = await this.client
         .from('categories')
         .select('*')
         .in('type', ['income', 'expense'])
+        .or(`user_id.is.null,user_id.eq.${this.currentUser.id}`)
         .order('created_at', { ascending: true });
 
       if (error) throw error;

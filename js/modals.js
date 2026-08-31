@@ -1336,7 +1336,7 @@ export class ModalManager {
   // context: 'renew_early' (H-7 s/d H-4), 'renew_urgent' (H-3 s/d H-2),
   //          'renew_last' (H-1), 'reactivate' (sudah expired / read-only)
   openPaymentModal(context = 'renew_early') {
-    const ADMIN_WA_NUMBER = '62895703185590'; // TODO: ganti dengan nomor WhatsApp admin kamu
+    const ADMIN_WA_NUMBER = '6281234567890'; // TODO: ganti dengan nomor WhatsApp admin kamu
 
     const titles = {
       renew_early: 'Lanjutkan Berlangganan',
@@ -1348,9 +1348,9 @@ export class ModalManager {
     let selectedMethod = 'Mandiri';
 
     const paymentDetails = {
-      Mandiri: { label: 'Transfer Bank Mandiri', account: '1420020938527 a.n. Eva Musdalifah' },
-      ShopeePay: { label: 'ShopeePay', account: '0857-4606-551 a.n. Eva Musdalifah' },
-      OVO: { label: 'OVO', account: '0857-4606-551 a.n. Eva Musdalifah' }
+      Mandiri: { label: 'Transfer Bank Mandiri', account: '1234567890 a.n. DataryWorks' },
+      ShopeePay: { label: 'ShopeePay', account: '0812-3456-7890 a.n. DataryWorks' },
+      OVO: { label: 'OVO', account: '0812-3456-7890 a.n. DataryWorks' }
     };
 
     const renderContent = () => `
