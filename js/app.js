@@ -26,6 +26,12 @@ class App {
     await state.init();
     this.attachGlobalEvents();
 
+    // PENTING: subscribe() didaftarkan SEBELUM pengecekan auth guard,
+    // supaya listener ini tetap aktif walau user belum login saat pertama kali
+    // membuka halaman. Sebelumnya, subscribe() ada SETELAH early-return,
+    // sehingga kalau user belum login, listener tidak pernah terdaftar --
+    // akibatnya setelah login/daftar akun, klik menu sidebar tidak memicu
+    // render ulang sampai halaman di-reload manual.
     state.subscribe(() => {
       if (this.checkAuthGuard()) {
         this.renderSidebar();
@@ -47,6 +53,7 @@ class App {
     const user = supabaseService.currentUser;
 
     if (!user) {
+      // Set latar belakang layar utama menjadi gelap polos
       const mainContent = document.getElementById('main-view-content');
       if (mainContent) {
         mainContent.innerHTML = `
@@ -54,6 +61,7 @@ class App {
         `;
       }
 
+      // Set sidebar menjadi mode gelap polos
       const sidebarEl = document.getElementById('sidebar-container');
       if (sidebarEl) {
         sidebarEl.innerHTML = `
@@ -73,6 +81,8 @@ class App {
 
       if (window.lucide) window.lucide.createIcons();
 
+      // Langsung munculkan pop-up login tanpa delay,
+      // supaya tidak ada jeda "kotak gelap kosong" yang terlihat berkedip
       if (this.modalManager) {
         this.modalManager.openAuthModal('login');
       }
@@ -127,76 +137,6 @@ class App {
     if (catSelect && state.selectedCategory) catSelect.value = state.selectedCategory;
   }
 
-  // --- LANGKAH 3: SUBSCRIPTION BANNER UI GENERATOR ---
-  renderSubscriptionBanner() {
-    const sub = typeof state.getSubscriptionInfo === 'function' 
-      ? state.getSubscriptionInfo() 
-      : { status: 'trial', daysLeft: 30, isReadonly: false };
-
-    if (sub.status === 'premium') {
-      return `
-        <div class="p-3 bg-emerald-950/60 border border-emerald-500/30 rounded-2xl text-xs text-slate-300">
-          <div class="flex items-center gap-2 font-bold text-emerald-400">
-            <i data-lucide="crown" class="w-4 h-4"></i> Akun Premium
-          </div>
-          <p class="text-[11px] text-slate-400 mt-1">Akses penuh ke semua fitur aktif.</p>
-        </div>
-      `;
-    }
-
-    if (sub.daysLeft >= 4 && sub.daysLeft <= 7) {
-      return `
-        <div class="p-3.5 bg-slate-800/90 border border-amber-500/40 rounded-2xl text-xs text-slate-300 space-y-2.5">
-          <p class="font-bold text-amber-400 leading-snug">🎁 Masa gratis Anda akan berakhir dalam ${sub.daysLeft} hari</p>
-          <p class="text-[11px] text-slate-400 leading-relaxed">Setelah masa gratis berakhir, Anda dapat melanjutkan penggunaan dengan Rp30.000/bulan.</p>
-          <button id="btn-pay-modal" class="w-full py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-xs transition shadow">
-            Lanjutkan Berlangganan
-          </button>
-        </div>
-      `;
-    }
-
-    if (sub.daysLeft >= 2 && sub.daysLeft <= 3) {
-      return `
-        <div class="p-3.5 bg-amber-950/40 border border-amber-500/50 rounded-2xl text-xs text-slate-300 space-y-2.5">
-          <p class="font-bold text-amber-400 leading-snug">⏰ ${sub.daysLeft} hari lagi masa gratis Anda berakhir</p>
-          <p class="text-[11px] text-slate-400 leading-relaxed">Semua transaksi dan data keuangan Anda akan tetap tersimpan.<br>Aktifkan langganan untuk terus menggunakan DataryWorks.</p>
-          <p class="font-black text-white text-xs">Rp30.000/bulan</p>
-          <button id="btn-pay-modal" class="w-full py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-xs transition shadow">
-            Berlangganan Sekarang
-          </button>
-        </div>
-      `;
-    }
-
-    if (sub.daysLeft === 1) {
-      return `
-        <div class="p-3.5 bg-rose-950/50 border border-rose-500/50 rounded-2xl text-xs text-slate-300 space-y-2.5">
-          <p class="font-bold text-rose-400 leading-snug">⚠️ Masa gratis Anda berakhir besok</p>
-          <p class="text-[11px] text-slate-400 leading-relaxed">Jangan kehilangan akses ke dashboard keuangan Anda.</p>
-          <p class="font-black text-white text-xs">Rp30.000/bulan</p>
-          <button id="btn-pay-modal" class="w-full py-2 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-xl text-xs transition shadow">
-            Aktifkan Langganan
-          </button>
-        </div>
-      `;
-    }
-
-    if (sub.isReadonly) {
-      return `
-        <div class="p-3.5 bg-slate-800 border border-slate-700 rounded-2xl text-xs text-slate-300 space-y-2.5">
-          <p class="font-bold text-rose-400">🔒 Mode Read-only</p>
-          <p class="text-[11px] text-slate-400 leading-relaxed">Langganan Anda telah berakhir. Data keuangan Anda tetap aman dan dapat dilihat kapan saja.</p>
-          <button id="btn-pay-modal" class="w-full py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-xs transition shadow">
-            Aktifkan Kembali — Rp30.000/bulan
-          </button>
-        </div>
-      `;
-    }
-
-    return '';
-  }
-
   renderSidebar() {
     const sidebarEl = document.getElementById('sidebar-container');
     if (!sidebarEl) return;
@@ -216,6 +156,7 @@ class App {
     }
 
     const availableYears = this.getAvailableYears();
+    const trialBannerHtml = this.getTrialBannerHtml();
 
     sidebarEl.innerHTML = `
       <div class="flex flex-col h-full justify-between p-5 bg-[#0F172A] text-slate-300 border-r border-slate-800">
@@ -252,10 +193,7 @@ class App {
             </button>
           </nav>
 
-          <div class="mt-8 pt-5 border-t border-slate-800 space-y-4">
-            <!-- SUBSCRIPTION BANNER -->
-            ${this.renderSubscriptionBanner()}
-
+          <div class="mt-8 pt-5 border-t border-slate-800">
             <div class="flex items-center gap-2 text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">
               <i data-lucide="filter" class="w-3.5 h-3.5 text-emerald-400"></i>
               <span>FILTERS</span>
@@ -340,14 +278,90 @@ class App {
           </div>
         </div>
 
-        <div class="mt-6 pt-4 border-t border-slate-800 text-center">
-          <p class="text-[10px] font-medium text-slate-500">DataryWorks v2.0 • Personal Finance</p>
+        <div class="mt-6 pt-4 border-t border-slate-800">
+          ${trialBannerHtml}
+          <p class="text-[10px] font-medium text-slate-500 text-center mt-3">DataryWorks v2.0 • Personal Finance</p>
         </div>
       </div>
     `;
 
     this.attachSidebarEvents();
     if (window.lucide) window.lucide.createIcons();
+  }
+
+  /**
+   * Menghasilkan HTML banner trial/subscription untuk sidebar kiri bawah,
+   * sesuai 4 tahap: normal (>7 hari), H-7..H-4, H-3..H-2, H-1, dan expired.
+   * Admin & Premium tidak menampilkan banner apa pun (return string kosong).
+   */
+  getTrialBannerHtml() {
+    const subInfo = state.getSubscriptionInfo();
+
+    // Admin / Premium aktif / belum login sama sekali -> tidak perlu banner
+    if (subInfo.isAdmin || subInfo.isPremium || subInfo.tier === 'guest') return '';
+
+    // MODE READ-ONLY (trial sudah habis & belum premium)
+    if (subInfo.isExpired) {
+      return `
+        <div class="p-3.5 bg-rose-500/10 border border-rose-500/30 rounded-xl text-[11px] text-rose-200 leading-relaxed mb-1">
+          <p class="font-bold text-rose-300 mb-1">🔒 Mode Read-only</p>
+          <p class="text-rose-200/90 mb-3">Langganan Anda telah berakhir. Data keuangan Anda tetap aman dan dapat dilihat kapan saja.</p>
+          <button id="btn-sidebar-subscribe" data-context="reactivate" class="w-full py-2 bg-rose-600 hover:bg-rose-700 text-white text-[11px] font-bold rounded-lg transition shadow">
+            Aktifkan Kembali — Rp30.000/bulan
+          </button>
+        </div>
+      `;
+    }
+
+    const daysLeft = subInfo.daysLeft;
+    if (daysLeft === null || daysLeft === undefined) return '';
+
+    // H-1 (besok berakhir)
+    if (daysLeft <= 1) {
+      return `
+        <div class="p-3.5 bg-rose-500/10 border border-rose-500/30 rounded-xl text-[11px] text-rose-200 leading-relaxed mb-1">
+          <p class="font-bold text-rose-300 mb-1">⚠️ Masa gratis Anda berakhir besok</p>
+          <p class="text-rose-200/90 mb-3">Jangan kehilangan akses ke dashboard keuangan Anda.<br><strong class="text-white">Rp30.000/bulan</strong></p>
+          <button id="btn-sidebar-subscribe" data-context="renew_last" class="w-full py-2 bg-rose-600 hover:bg-rose-700 text-white text-[11px] font-bold rounded-lg transition shadow">
+            Aktifkan Langganan
+          </button>
+        </div>
+      `;
+    }
+
+    // H-3 s/d H-2
+    if (daysLeft <= 3) {
+      return `
+        <div class="p-3.5 bg-amber-500/10 border border-amber-500/30 rounded-xl text-[11px] text-amber-200 leading-relaxed mb-1">
+          <p class="font-bold text-amber-300 mb-1">⏰ ${daysLeft} hari lagi masa gratis Anda berakhir</p>
+          <p class="text-amber-200/90 mb-1">Semua transaksi dan data keuangan Anda akan tetap tersimpan.</p>
+          <p class="text-amber-200/90 mb-3">Aktifkan langganan untuk terus menggunakan DataryWorks.<br><strong class="text-white">Rp30.000/bulan</strong></p>
+          <button id="btn-sidebar-subscribe" data-context="renew_urgent" class="w-full py-2 bg-amber-500 hover:bg-amber-600 text-slate-950 text-[11px] font-bold rounded-lg transition shadow">
+            Berlangganan Sekarang
+          </button>
+        </div>
+      `;
+    }
+
+    // H-7 s/d H-4
+    if (daysLeft <= 7) {
+      return `
+        <div class="p-3.5 bg-blue-500/10 border border-blue-500/30 rounded-xl text-[11px] text-blue-200 leading-relaxed mb-1">
+          <p class="font-bold text-blue-300 mb-1">🎁 Masa gratis Anda akan berakhir dalam ${daysLeft} hari</p>
+          <p class="text-blue-200/90 mb-3">Setelah masa gratis berakhir, Anda dapat melanjutkan penggunaan dengan <strong class="text-white">Rp30.000/bulan</strong>.</p>
+          <button id="btn-sidebar-subscribe" data-context="renew_early" class="w-full py-2 bg-blue-600 hover:bg-blue-700 text-white text-[11px] font-bold rounded-lg transition shadow">
+            Lanjutkan Berlangganan
+          </button>
+        </div>
+      `;
+    }
+
+    // > 7 hari: tampilan normal, cukup info kecil tanpa CTA mendesak
+    return `
+      <div class="p-3 bg-slate-800/60 rounded-xl border border-slate-700/60 text-[11px] text-slate-300 font-medium leading-relaxed mb-1 text-center">
+        🎉 Masa trial aktif — <strong class="text-white">${daysLeft} hari</strong> tersisa
+      </div>
+    `;
   }
 
   renderActiveView() {
@@ -400,6 +414,11 @@ class App {
 
     document.getElementById('btn-export-pdf')?.addEventListener('click', () => exportToPDF(state));
     document.getElementById('btn-export-csv')?.addEventListener('click', () => exportToCSV(state));
+
+    document.getElementById('btn-sidebar-subscribe')?.addEventListener('click', (e) => {
+      const context = e.currentTarget.getAttribute('data-context') || 'renew_early';
+      this.modalManager.openPaymentModal(context);
+    });
   }
 
   attachGlobalEvents() {
@@ -407,15 +426,18 @@ class App {
       const target = e.target.closest('button');
       if (!target) return;
 
-      if (target.id === 'btn-pay-modal' || target.closest('#btn-pay-modal')) {
-        this.modalManager.openPaymentModal();
-      } else if (target.id === 'btn-user-login' || target.closest('#btn-user-login')) {
+      if (target.id === 'btn-user-login' || target.closest('#btn-user-login')) {
         this.modalManager.openAuthModal('login');
       } else if (target.id === 'btn-user-logout' || target.closest('#btn-user-logout')) {
         this.modalManager.openLogoutConfirm(async () => {
+          // 1. Hapus sesi dari Supabase Cloud
           await supabaseService.signOut();
+
+          // 2. Paksa kosongkan user aktif & bersihkan LocalStorage lokal
           supabaseService.currentUser = null;
           if (typeof state.clearUserData === 'function') state.clearUserData();
+
+          // 3. Jalankan Auth Guard untuk kembali ke tampilan layar awal & pop-up login
           this.checkAuthGuard();
         });
       }

@@ -43,7 +43,17 @@ class SupabaseService {
   initClient() {
     if (this.config.url && this.config.anonKey && window.supabase) {
       try {
-        this.client = window.supabase.createClient(this.config.url, this.config.anonKey);
+        this.client = window.supabase.createClient(this.config.url, this.config.anonKey, {
+          auth: {
+            // Gunakan sessionStorage (bukan localStorage) supaya sesi login
+            // otomatis terhapus saat tab/browser ditutup, bukan tersimpan permanen.
+            // Efeknya: setiap kali user membuka tab/browser baru, mereka akan
+            // diminta login ulang -- meskipun sebelumnya belum eksplisit logout.
+            storage: window.sessionStorage,
+            persistSession: true,
+            autoRefreshToken: true
+          }
+        });
         this.isConnected = true;
         console.log('⚡ Supabase Client initialized successfully');
         return true;
@@ -352,6 +362,71 @@ class SupabaseService {
       return { success: true };
     } catch (err) {
       console.error('Gagal hapus saving goal di Supabase:', err);
+      return { success: false, error: err.message };
+    }
+  }
+
+  // ==============================================================================
+  // SUBSCRIPTION / TRIAL SYSTEM
+  // ==============================================================================
+
+  async fetchSubscription() {
+    if (!this.client || !this.currentUser) return null;
+    try {
+      const { data, error } = await this.client
+        .from('subscriptions')
+        .select('*')
+        .eq('user_id', this.currentUser.id)
+        .maybeSingle();
+
+      if (error) throw error;
+
+      // Kalau baris belum ada (misal trigger belum sempat jalan / user lama sebelum
+      // fitur ini dipasang), buatkan fallback trial 30 hari dari sekarang secara lokal
+      // supaya UI tidak error, sekaligus coba insert ke database.
+      if (!data) {
+        const fallbackTrialEnd = new Date();
+        fallbackTrialEnd.setDate(fallbackTrialEnd.getDate() + 30);
+
+        const fallback = {
+          user_id: this.currentUser.id,
+          status: 'trial',
+          trial_end_date: fallbackTrialEnd.toISOString(),
+          premium_until: null
+        };
+
+        await this.client.from('subscriptions').insert([fallback]).select();
+        return fallback;
+      }
+
+      return data;
+    } catch (err) {
+      console.error('Gagal memuat data subscription:', err);
+      return null;
+    }
+  }
+
+  async insertPaymentConfirmation({ method, senderAccount }) {
+    if (!this.client || !this.currentUser) return { success: false, localOnly: true };
+    try {
+      const payload = {
+        user_id: this.currentUser.id,
+        user_email: this.currentUser.email || null,
+        user_name: this.currentUser.user_metadata?.full_name || null,
+        method,
+        sender_account: senderAccount,
+        status: 'pending'
+      };
+
+      const { data, error } = await this.client
+        .from('payment_confirmations')
+        .insert([payload])
+        .select();
+
+      if (error) throw error;
+      return { success: true, data: data[0] };
+    } catch (err) {
+      console.error('Gagal menyimpan log konfirmasi pembayaran:', err);
       return { success: false, error: err.message };
     }
   }

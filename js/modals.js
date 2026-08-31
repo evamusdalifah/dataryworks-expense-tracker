@@ -1,5 +1,5 @@
 // ==============================================================================
-// DATARYWORKS EXPENSE TRACKER - MODALS MANAGER (WITH SUBSCRIPTION & READ-ONLY GUARD)
+// DATARYWORKS EXPENSE TRACKER - MODALS MANAGER (FIXED AUTH & NO-CLOSE LOGIC)
 // ==============================================================================
 
 import { supabaseService } from './supabase.js';
@@ -38,51 +38,6 @@ export class ModalManager {
     btnCloses.forEach(btn => btn.addEventListener('click', () => this.close()));
   }
 
-  // --- CEK DAN CEGAH AKSES JIKA AKUN DALAM MODE READ-ONLY / EXPIRED ---
-  checkReadOnlyGuard() {
-    const sub = typeof this.state.getSubscriptionInfo === 'function' 
-      ? this.state.getSubscriptionInfo() 
-      : { isReadonly: false };
-
-    if (sub.isReadonly) {
-      this.openReadOnlyAlertModal();
-      return true; // Returns true jika Read-only (diblokir)
-    }
-    return false;
-  }
-
-  openReadOnlyAlertModal() {
-    const html = `
-      <div class="p-6 text-center flex flex-col items-center">
-        <div class="w-14 h-14 rounded-full bg-rose-100 text-rose-600 flex items-center justify-center mb-4 shadow-sm">
-          <i data-lucide="lock" class="w-7 h-7 stroke-[2.5]"></i>
-        </div>
-
-        <h3 class="text-xl font-black text-slate-900 tracking-tight mb-1">
-          🔒 Mode Read-only
-        </h3>
-        <p class="text-xs text-slate-500 font-medium leading-relaxed max-w-xs mb-6">
-          Langganan Anda telah berakhir. Data keuangan Anda tetap aman dan dapat dilihat kapan saja. Aktifkan langganan untuk menambah, mengedit, atau menghapus transaksi.
-        </p>
-
-        <div class="flex items-center justify-center gap-3 w-full">
-          <button class="btn-modal-close flex-1 px-4 py-2.5 text-xs font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-xl transition">
-            Nanti Saja
-          </button>
-          <button id="btn-modal-activate-sub" class="flex-1 px-4 py-2.5 text-xs font-bold text-white bg-emerald-700 hover:bg-emerald-800 rounded-xl shadow transition">
-            Aktifkan Kembali — Rp30.000/bulan
-          </button>
-        </div>
-      </div>
-    `;
-
-    this.open(html, 'max-w-sm');
-
-    document.getElementById('btn-modal-activate-sub')?.addEventListener('click', () => {
-      this.openPaymentModal();
-    });
-  }
-
   getActiveSavingGoals() {
     return (this.state.savingGoals || []).filter(g => {
       const targetAmt = Number(g.targetAmount || g.target_amount || 0);
@@ -94,7 +49,10 @@ export class ModalManager {
 
   // --- 1. ADD TRANSACTION MODAL ---
   openAddTransaction(defaultType = 'expense') {
-    if (this.checkReadOnlyGuard()) return;
+    if (!this.state.canEditData()) {
+      this.openLockedFeatureModal('reactivate');
+      return;
+    }
 
     this.activeType = defaultType;
 
@@ -252,7 +210,7 @@ export class ModalManager {
         if (this.activeType === 'saving') {
           const goalSelect = document.getElementById('input-trx-goal');
           if (!goalSelect || !goalSelect.value) {
-            this.openErrorModal('Silakan pilih target tabungan yang masih aktif.', () => this.openAddTransaction('saving'));
+            alert('Silakan pilih target tabungan yang masih aktif.');
             return;
           }
           goalId = goalSelect.value;
@@ -266,19 +224,26 @@ export class ModalManager {
           subcategory = document.getElementById('input-trx-subcategory')?.value || 'General';
         }
 
-        await this.state.addTransaction({
-          date,
-          item,
-          amount: Number(amount),
-          type: this.activeType,
-          category,
-          subcategory,
-          paymentMethod: 'Cash',
-          goalId,
-          goalName
-        });
-
-        this.close();
+        try {
+          await this.state.addTransaction({
+            date,
+            item,
+            amount: Number(amount),
+            type: this.activeType,
+            category,
+            subcategory,
+            paymentMethod: 'Cash',
+            goalId,
+            goalName
+          });
+          this.close();
+        } catch (err) {
+          if (err.message === 'READ_ONLY_MODE') {
+            this.openLockedFeatureModal('reactivate');
+          } else {
+            this.openErrorModal('Gagal menyimpan transaksi: ' + err.message);
+          }
+        }
       });
     }
   }
@@ -303,8 +268,6 @@ export class ModalManager {
 
   // --- 2. CATEGORY MANAGER MODAL ---
   openCategoryManager() {
-    if (this.checkReadOnlyGuard()) return;
-
     const categories = this.state.categories || [];
 
     const html = `
@@ -425,12 +388,21 @@ export class ModalManager {
 
     this.container.querySelectorAll('.btn-delete-cat').forEach(btn => {
       btn.addEventListener('click', async () => {
+        if (!this.state.canEditData()) {
+          this.openLockedFeatureModal('reactivate');
+          return;
+        }
+
         const catId = btn.getAttribute('data-id');
         const catName = btn.getAttribute('data-name');
 
         if (confirm(`Hapus kategori "${catName}"? Semua riwayat transaksi berkategori ini akan dipindahkan ke "Others".`)) {
-          await this.state.deleteCategory(catId);
-          this.openCategoryManager();
+          try {
+            await this.state.deleteCategory(catId);
+            this.openCategoryManager();
+          } catch (err) {
+            this.openErrorModal(err.message);
+          }
         }
       });
     });
@@ -438,7 +410,10 @@ export class ModalManager {
 
   // --- 3. ADD SAVING GOAL MODAL ---
   openAddGoal() {
-    if (this.checkReadOnlyGuard()) return;
+    if (!this.state.canEditData()) {
+      this.openLockedFeatureModal('reactivate');
+      return;
+    }
 
     const html = `
       <div class="p-6 border-b border-slate-100 flex items-center justify-between">
@@ -520,7 +495,11 @@ export class ModalManager {
           await this.state.addGoal({ name, targetAmount, savedAmount, deadline, icon });
           this.close();
         } catch (err) {
-          this.openErrorModal('Gagal menyimpan target: ' + err.message, () => this.openAddGoal());
+          if (err.message === 'READ_ONLY_MODE') {
+            this.openLockedFeatureModal('reactivate');
+          } else {
+            this.openErrorModal('Gagal menyimpan target: ' + err.message, () => this.openAddGoal());
+          }
         } finally {
           if (submitBtn) {
             submitBtn.disabled = false;
@@ -533,7 +512,10 @@ export class ModalManager {
 
   // --- 4. ADD CONTRIBUTION MODAL ---
   openAddContribution() {
-    if (this.checkReadOnlyGuard()) return;
+    if (!this.state.canEditData()) {
+      this.openLockedFeatureModal('reactivate');
+      return;
+    }
 
     const activeGoals = this.getActiveSavingGoals();
 
@@ -595,7 +577,7 @@ export class ModalManager {
         e.preventDefault();
         const goalSelect = document.getElementById('input-contrib-goal');
         if (!goalSelect || !goalSelect.value) {
-          this.openErrorModal('Silakan pilih target tabungan yang masih aktif.', () => this.openAddContribution());
+          alert('Silakan pilih target tabungan yang masih aktif.');
           return;
         }
 
@@ -606,21 +588,29 @@ export class ModalManager {
         const amount = Number(document.getElementById('input-contrib-amount').value) || 0;
         const note = document.getElementById('input-contrib-note').value;
 
-        if (typeof this.state.addContribution === 'function') {
-          await this.state.addContribution({ goalId, goalName, date, amount, paymentMethod: 'Cash', note });
-        } else {
-          await this.state.addTransaction({
-            date,
-            item: note || `Setoran Tabungan: ${goalName}`,
-            amount,
-            type: 'saving',
-            category: 'Saving Goals',
-            subcategory: goalName,
-            goalId,
-            goalName
-          });
+        try {
+          if (typeof this.state.addContribution === 'function') {
+            await this.state.addContribution({ goalId, goalName, date, amount, paymentMethod: 'Cash', note });
+          } else {
+            await this.state.addTransaction({
+              date,
+              item: note || `Setoran Tabungan: ${goalName}`,
+              amount,
+              type: 'saving',
+              category: 'Saving Goals',
+              subcategory: goalName,
+              goalId,
+              goalName
+            });
+          }
+          this.close();
+        } catch (err) {
+          if (err.message === 'READ_ONLY_MODE') {
+            this.openLockedFeatureModal('reactivate');
+          } else {
+            this.openErrorModal('Gagal menyimpan setoran: ' + err.message);
+          }
         }
-        this.close();
       });
     }
   }
@@ -878,8 +868,11 @@ export class ModalManager {
       const editBtn = e.target.closest('[data-edit-id]');
 
       if (deleteBtn) {
-        if (this.checkReadOnlyGuard()) return;
         const id = deleteBtn.getAttribute('data-delete-id');
+        if (!this.state.canEditData()) {
+          this.openLockedFeatureModal('reactivate');
+          return;
+        }
         if (confirm('Hapus transaksi ini?')) {
           await this.state.deleteTransaction(id);
           renderList();
@@ -887,7 +880,6 @@ export class ModalManager {
       }
 
       if (editBtn) {
-        if (this.checkReadOnlyGuard()) return;
         const id = editBtn.getAttribute('data-edit-id');
         this.openEditTransaction(id);
       }
@@ -896,7 +888,10 @@ export class ModalManager {
 
   // --- 6. MODAL EDIT TRANSAKSI ---
   openEditTransaction(trxId) {
-    if (this.checkReadOnlyGuard()) return;
+    if (!this.state.canEditData()) {
+      this.openLockedFeatureModal('reactivate');
+      return;
+    }
 
     const trx = (this.state.transactions || []).find(t => String(t.id) === String(trxId));
     if (!trx) return;
@@ -1099,12 +1094,14 @@ export class ModalManager {
     }
   }
 
-  // --- 8. AUTHENTICATION MODAL ---
+  // --- 8. AUTHENTICATION MODAL (MATCHED DESIGN TO IMAGE) ---
   openAuthModal(initialTab = 'login') {
     let isLogin = initialTab === 'login';
 
     const renderAuthContent = () => `
+      <!-- HEADER MODAL AUTH -->
       <div class="p-6 pb-2 text-center flex flex-col items-center">
+        <!-- Circular Icon Badge -->
         <div class="w-14 h-14 rounded-full bg-emerald-100/80 text-emerald-600 flex items-center justify-center mb-4 shadow-sm">
           <i data-lucide="trending-up" class="w-7 h-7 stroke-[2.5]"></i>
         </div>
@@ -1116,6 +1113,7 @@ export class ModalManager {
           ${isLogin ? 'Kelola keuangan pribadi Anda di <br><span class="font-bold text-emerald-600">DataryWorks</span> Expense Tracker' : 'Mulai catat dan analisis keuangan Anda hari ini.'}
         </p>
 
+        <!-- Decorated Divider -->
         <div class="relative w-full flex items-center justify-center my-5">
           <div class="w-full border-t border-slate-100"></div>
           <div class="absolute w-2 h-2 rounded-full bg-emerald-500"></div>
@@ -1270,7 +1268,7 @@ export class ModalManager {
     attachAuthEvents();
   }
 
-  // --- NOTIFIKASI SUKSES ---
+  // --- NOTIFIKASI SUKSES (Custom, menggantikan window.alert) ---
   openSuccessModal(message, onContinue, icon = 'check-circle-2', title = 'Berhasil!') {
     const html = `
       <div class="p-6 text-center flex flex-col items-center">
@@ -1302,7 +1300,7 @@ export class ModalManager {
     });
   }
 
-  // --- NOTIFIKASI ERROR ---
+  // --- NOTIFIKASI ERROR (Custom, menggantikan window.alert) ---
   openErrorModal(message, onContinue) {
     const html = `
       <div class="p-6 text-center flex flex-col items-center">
@@ -1334,7 +1332,182 @@ export class ModalManager {
     });
   }
 
-  // --- KONFIRMASI LOGOUT ---
+  // --- KONFIRMASI PEMBAYARAN LANGGANAN (Trial → Premium / Perpanjangan) ---
+  // context: 'renew_early' (H-7 s/d H-4), 'renew_urgent' (H-3 s/d H-2),
+  //          'renew_last' (H-1), 'reactivate' (sudah expired / read-only)
+  openPaymentModal(context = 'renew_early') {
+    const ADMIN_WA_NUMBER = '62895703185590'; // TODO: ganti dengan nomor WhatsApp admin kamu
+
+    const titles = {
+      renew_early: 'Lanjutkan Berlangganan',
+      renew_urgent: 'Berlangganan Sekarang',
+      renew_last: 'Aktifkan Langganan',
+      reactivate: 'Aktifkan Kembali Langganan'
+    };
+
+    let selectedMethod = 'Mandiri';
+
+    const paymentDetails = {
+      Mandiri: { label: 'Transfer Bank Mandiri', account: '1420020938527 a.n. Eva Musdalifah' },
+      ShopeePay: { label: 'ShopeePay', account: '0857-4606-551 a.n. Eva Musdalifah' },
+      OVO: { label: 'OVO', account: '0857-4606-551 a.n. Eva Musdalifah' }
+    };
+
+    const renderContent = () => `
+      <div class="p-6 border-b border-slate-100 flex items-center justify-between">
+        <div>
+          <h3 class="text-lg font-bold text-slate-900">${titles[context] || 'Aktifkan Langganan'}</h3>
+          <p class="text-xs text-slate-500 mt-0.5">Langganan DataryWorks Rp30.000 / bulan.</p>
+        </div>
+        <button class="btn-modal-close text-slate-400 hover:text-slate-600 transition p-1.5 rounded-lg hover:bg-slate-100">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <div class="p-6 space-y-4 overflow-y-auto flex-1">
+        <div>
+          <label class="block text-xs font-bold text-slate-700 mb-2">Pilih Metode Pembayaran</label>
+          <div class="grid grid-cols-3 gap-2">
+            ${Object.keys(paymentDetails).map(m => `
+              <button type="button" data-method="${m}" class="btn-pay-method py-2.5 text-xs font-bold rounded-xl border-2 transition ${m === selectedMethod ? 'border-emerald-600 bg-emerald-50 text-emerald-800' : 'border-slate-200 text-slate-600 hover:border-slate-300'}">
+                ${m}
+              </button>
+            `).join('')}
+          </div>
+        </div>
+
+        <div id="payment-detail-box" class="p-3.5 bg-slate-50 border border-slate-200 rounded-xl">
+          <p class="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Transfer / Bayar Ke</p>
+          <p class="text-sm font-black text-slate-900" id="payment-detail-label">${paymentDetails[selectedMethod].label}</p>
+          <p class="text-xs font-semibold text-emerald-700 mt-0.5" id="payment-detail-account">${paymentDetails[selectedMethod].account}</p>
+          <p class="text-xs text-slate-500 mt-2">Nominal: <strong class="text-slate-900">Rp30.000</strong></p>
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold text-slate-700 mb-1">Nomor Rekening / HP Pengirim</label>
+          <input type="text" id="input-payment-sender" required placeholder="Nomor rekening atau HP yang kamu pakai transfer" class="w-full px-3.5 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-600">
+          <p class="text-[10px] text-slate-400 mt-1">Diperlukan supaya admin bisa mencocokkan bukti transfer kamu.</p>
+        </div>
+
+        <div class="p-3 bg-amber-50 border border-amber-200 rounded-xl text-[11px] text-amber-900 leading-relaxed">
+          1. Transfer Rp30.000 ke rekening di atas.<br>
+          2. Isi nomor rekening/HP pengirim kamu.<br>
+          3. Klik tombol "Konfirmasi Pembayaran" di bawah — kamu akan diarahkan ke WhatsApp admin untuk verifikasi.<br>
+          4. Setelah admin memverifikasi, akun kamu otomatis aktif kembali.
+        </div>
+
+        <button id="btn-confirm-payment" class="w-full py-3 text-xs font-bold text-white bg-emerald-800 hover:bg-emerald-900 rounded-xl shadow transition flex items-center justify-center gap-2">
+          <i data-lucide="message-circle" class="w-4 h-4"></i>
+          Konfirmasi Pembayaran via WhatsApp
+        </button>
+      </div>
+    `;
+
+    this.open(renderContent(), 'max-w-md');
+
+    const attachEvents = () => {
+      this.container.querySelectorAll('.btn-pay-method').forEach(btn => {
+        btn.addEventListener('click', () => {
+          selectedMethod = btn.getAttribute('data-method');
+          this.container.querySelectorAll('.btn-pay-method').forEach(b => {
+            const isActive = b.getAttribute('data-method') === selectedMethod;
+            b.className = `btn-pay-method py-2.5 text-xs font-bold rounded-xl border-2 transition ${isActive ? 'border-emerald-600 bg-emerald-50 text-emerald-800' : 'border-slate-200 text-slate-600 hover:border-slate-300'}`;
+          });
+          document.getElementById('payment-detail-label').textContent = paymentDetails[selectedMethod].label;
+          document.getElementById('payment-detail-account').textContent = paymentDetails[selectedMethod].account;
+        });
+      });
+
+      document.getElementById('btn-confirm-payment')?.addEventListener('click', async () => {
+        const senderInput = document.getElementById('input-payment-sender');
+        const senderAccount = senderInput?.value.trim();
+
+        if (!senderAccount) {
+          senderInput?.classList.add('ring-2', 'ring-rose-500');
+          senderInput?.focus();
+          return;
+        }
+
+        const btn = document.getElementById('btn-confirm-payment');
+        if (btn) {
+          btn.disabled = true;
+          btn.innerHTML = 'Memproses...';
+        }
+
+        const user = supabaseService.currentUser;
+        const userName = user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'User';
+        const userEmail = user?.email || '-';
+        const timestamp = new Date().toLocaleString('id-ID', { dateStyle: 'full', timeStyle: 'short' });
+
+        // Simpan log ke Supabase (best-effort, tidak menghalangi WA kalau gagal)
+        try {
+          await supabaseService.insertPaymentConfirmation({ method: selectedMethod, senderAccount });
+        } catch (e) {
+          console.warn('Gagal simpan log pembayaran:', e);
+        }
+
+        const waMessage = [
+          `*Konfirmasi Pembayaran DataryWorks*`,
+          ``,
+          `Waktu: ${timestamp}`,
+          `Nama: ${userName}`,
+          `Email: ${userEmail}`,
+          `Metode: ${selectedMethod}`,
+          `No. Rekening/HP Pengirim: ${senderAccount}`,
+          ``,
+          `Mohon diverifikasi dan aktifkan langganan saya. Terima kasih!`
+        ].join('\n');
+
+        const waUrl = `https://wa.me/${ADMIN_WA_NUMBER}?text=${encodeURIComponent(waMessage)}`;
+        window.open(waUrl, '_blank');
+
+        this.openSuccessModal(
+          'Kamu akan diarahkan ke WhatsApp untuk mengirim konfirmasi ke admin. Setelah admin memverifikasi pembayaran, langganan kamu akan otomatis aktif — biasanya tidak lama.',
+          () => this.close(),
+          'message-circle',
+          'Konfirmasi Terkirim'
+        );
+      });
+    };
+
+    attachEvents();
+  }
+
+  // --- NOTIFIKASI FITUR TERKUNCI (Mode Read-only) ---
+  openLockedFeatureModal(context = 'reactivate') {
+    const html = `
+      <div class="p-6 text-center flex flex-col items-center">
+        <div class="w-14 h-14 rounded-full bg-amber-100/80 text-amber-600 flex items-center justify-center mb-4 shadow-sm">
+          <i data-lucide="lock" class="w-7 h-7 stroke-[2.5]"></i>
+        </div>
+
+        <h3 class="text-lg font-black text-slate-900 tracking-tight mb-1">
+          🔒 Mode Read-only
+        </h3>
+        <p class="text-xs text-slate-500 font-medium leading-relaxed max-w-xs mb-6">
+          Langganan Anda telah berakhir. Data keuangan Anda tetap aman dan dapat dilihat kapan saja, namun untuk menambah, mengubah, atau menghapus transaksi, silakan aktifkan kembali langganan Anda.
+        </p>
+
+        <div class="flex items-center justify-center gap-3 w-full">
+          <button id="btn-locked-cancel" class="flex-1 px-4 py-2.5 text-xs font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-xl transition">
+            Nanti Saja
+          </button>
+          <button id="btn-locked-subscribe" class="flex-1 px-4 py-2.5 text-xs font-bold text-white bg-emerald-800 hover:bg-emerald-900 rounded-xl shadow transition">
+            Aktifkan Kembali — Rp30.000
+          </button>
+        </div>
+      </div>
+    `;
+
+    this.open(html, 'max-w-sm');
+
+    document.getElementById('btn-locked-cancel')?.addEventListener('click', () => this.close());
+    document.getElementById('btn-locked-subscribe')?.addEventListener('click', () => {
+      this.openPaymentModal(context);
+    });
+  }
+
+  // --- KONFIRMASI LOGOUT (Custom, menggantikan window.confirm) ---
   openLogoutConfirm(onConfirm) {
     const html = `
       <div class="p-6 text-center flex flex-col items-center">
@@ -1350,8 +1523,8 @@ export class ModalManager {
         </p>
 
         <div class="flex items-center justify-center gap-3 w-full">
-          <button id="btn-logout-cancel" class="btn-modal-close flex-1 px-4 py-2.5 text-xs font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-xl transition">
-            Batal
+          <button id="btn-logout-cancel" class="flex-1 px-4 py-2.5 text-xs font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-xl transition">
+          Batal
           </button>
           <button id="btn-logout-confirm" class="flex-1 px-4 py-2.5 text-xs font-bold text-white bg-rose-600 hover:bg-rose-700 rounded-xl shadow transition">
             Ya, Keluar
@@ -1366,6 +1539,8 @@ export class ModalManager {
       const btn = document.getElementById('btn-logout-confirm');
       const btnCancel = document.getElementById('btn-logout-cancel');
 
+      // Jangan close() dulu — tampilkan loading state di dalam modal yang sama
+      // biar background tetap gelap terus, nggak ada momen dashboard nongol lagi
       if (btn) {
         btn.disabled = true;
         btn.innerHTML = 'Memproses...';
@@ -1373,84 +1548,13 @@ export class ModalManager {
       if (btnCancel) btnCancel.disabled = true;
 
       if (typeof onConfirm === 'function') await onConfirm();
-    });
-  }
 
-  // --- PEMBAYARAN LANGGANAN & KONFIRMASI WHATSAPP ---
-  openPaymentModal() {
-    const user = supabaseService.currentUser;
-    const userName = user?.user_metadata?.full_name || 'User DataryWorks';
-    const userEmail = user?.email || '-';
-
-    const html = `
-      <div class="p-6 border-b border-slate-100 flex items-center justify-between">
-        <div>
-          <h3 class="text-lg font-bold text-slate-900">Pembayaran Langganan</h3>
-          <p class="text-xs text-slate-500 mt-0.5">Biaya Berlangganan: <span class="font-bold text-emerald-600">Rp30.000 / bulan</span></p>
-        </div>
-        <button class="btn-modal-close text-slate-400 hover:text-slate-600 p-1.5 rounded-lg hover:bg-slate-100">
-          <i data-lucide="x" class="w-5 h-5"></i>
-        </button>
-      </div>
-
-      <div class="p-6 space-y-4 text-xs text-slate-700 overflow-y-auto max-h-[70vh]">
-        <p class="font-semibold text-slate-800">Pilih Metode Pembayaran Transfer:</p>
-        
-        <div class="space-y-2">
-          <div class="p-3 border border-slate-200 rounded-xl bg-slate-50 flex justify-between items-center">
-            <div>
-              <p class="font-bold text-slate-900">🏦 Bank Mandiri</p>
-              <p class="text-slate-500 text-[11px]">No. Rek: <span class="font-mono font-bold text-slate-800">123-00-101010-1</span> a/n Eva Musdalifah</p>
-            </div>
-          </div>
-
-          <div class="p-3 border border-slate-200 rounded-xl bg-slate-50 flex justify-between items-center">
-            <div>
-              <p class="font-bold text-slate-900">🟧 ShopeePay</p>
-              <p class="text-slate-500 text-[11px]">No. HP: <span class="font-mono font-bold text-slate-800">0812-3456-7890</span></p>
-            </div>
-          </div>
-
-          <div class="p-3 border border-slate-200 rounded-xl bg-slate-50 flex justify-between items-center">
-            <div>
-              <p class="font-bold text-slate-900">💜 OVO</p>
-              <p class="text-slate-500 text-[11px]">No. HP: <span class="font-mono font-bold text-slate-800">0812-3456-7890</span></p>
-            </div>
-          </div>
-        </div>
-
-        <form id="form-confirm-payment" class="pt-3 border-t border-slate-100 space-y-3">
-          <div>
-            <label class="block text-xs font-semibold mb-1">Nama / Bank Pembayar (No. Rekening Anda)</label>
-            <input type="text" id="pay-sender-info" required placeholder="Contoh: Mandiri 137000123xx / A.N Budi" class="w-full px-3.5 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-600">
-          </div>
-
-          <button type="submit" class="w-full py-3 bg-emerald-800 hover:bg-emerald-900 text-white font-bold rounded-xl shadow transition flex items-center justify-center gap-2">
-            <i data-lucide="message-circle" class="w-4 h-4"></i>
-            Konfirmasi Pembayaran via WhatsApp
-          </button>
-        </form>
-      </div>
-    `;
-
-    this.open(html, 'max-w-md');
-
-    document.getElementById('form-confirm-payment')?.addEventListener('submit', (e) => {
-      e.preventDefault();
-      const senderInfo = document.getElementById('pay-sender-info').value.trim();
-      const adminWA = '62895703185590';
-
-      const nowStr = new Date().toLocaleString('id-ID');
-      const textMessage = `Halo Admin DataryWorks,%0A%0A` +
-        `Saya ingin konfirmasi pembayaran langganan:%0A` +
-        `- *Waktu*: ${encodeURIComponent(nowStr)}%0A` +
-        `- *Nama*: ${encodeURIComponent(userName)}%0A` +
-        `- *Email*: ${encodeURIComponent(userEmail)}%0A` +
-        `- *Rekening/Metode Pembayaran*: ${encodeURIComponent(senderInfo)}%0A%0A` +
-        `Mohon untuk diaktifkan status Premium akun saya. Terima kasih!`;
-
-      window.open(`https://wa.me/${adminWA}?text=${textMessage}`, '_blank');
-      this.close();
+      // PENTING: this.close() TIDAK dipanggil di sini.
+      // onConfirm() sudah memanggil checkAuthGuard() di app.js, yang otomatis
+      // membuka modal login baru lewat openAuthModal(). Modal login itu
+      // mengganti isi #modal-container lewat this.open(). Kalau close()
+      // dipanggil setelahnya, modal login yang baru saja tampil akan
+      // langsung dikosongkan lagi -> inilah salah satu penyebab "kedip".
     });
   }
 }

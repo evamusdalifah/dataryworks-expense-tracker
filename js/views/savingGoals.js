@@ -9,12 +9,29 @@ export function renderSavingGoals(state) {
   // Set active view state
   state.currentView = 'savingGoals';
 
-  // Data User untuk Widget Profil Kanan Atas
+  // Data User & Status Langganan untuk Widget Profil Kanan Atas
   const user = supabaseService.currentUser;
-  const role = user?.user_metadata?.role || 'user';
-  const isAdmin = role === 'admin';
+  const subInfo = state.getSubscriptionInfo();
+  const isAdmin = subInfo.isAdmin;
+  const canEdit = subInfo.canEdit;
   const userName = user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Guest User';
-  const userPlan = isAdmin ? 'Admin Plan 👑' : (user ? 'Free Plan' : 'Mode Lokal / Demo');
+
+  let userPlan = 'Mode Lokal / Demo';
+  let planColorClass = 'text-slate-400';
+  if (isAdmin) {
+    userPlan = 'Admin Plan 👑';
+    planColorClass = 'text-amber-600 font-bold';
+  } else if (subInfo.isPremium) {
+    userPlan = 'Premium ✨';
+    planColorClass = 'text-emerald-600 font-bold';
+  } else if (subInfo.isTrial) {
+    userPlan = subInfo.daysLeft != null ? `Free Trial • ${subInfo.daysLeft} hari lagi` : 'Free Trial';
+    planColorClass = 'text-blue-600 font-semibold';
+  } else if (subInfo.isExpired) {
+    userPlan = '🔒 Read-only';
+    planColorClass = 'text-rose-600 font-bold';
+  }
+
   const avatarInitial = userName.charAt(0).toUpperCase();
 
   // Helper untuk normalisasi ikon Lucide agar selalu muncul valid
@@ -216,10 +233,20 @@ export function renderSavingGoals(state) {
 
       <!-- AKSIONAL KANAN ATAS: USER PROFILE + TAMBAH TRANSAKSI -->
       <div class="flex items-center gap-3">
-        <button id="btn-top-add-transaction" class="px-4 py-2 bg-emerald-800 hover:bg-emerald-900 text-white rounded-2xl text-xs font-bold shadow-md transition flex items-center gap-2">
-          <i data-lucide="plus-circle" class="w-4 h-4"></i>
-          Tambah Transaksi
-        </button>
+        ${canEdit ? `
+          <button id="btn-top-add-transaction" class="px-4 py-2 bg-emerald-800 hover:bg-emerald-900 text-white rounded-2xl text-xs font-bold shadow-md transition flex items-center gap-2">
+            <i data-lucide="plus-circle" class="w-4 h-4"></i>
+            Tambah Transaksi
+          </button>
+        ` : `
+          <button id="btn-top-add-transaction" class="px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-500 rounded-2xl text-xs font-bold shadow-sm transition flex items-center gap-2 text-left" title="Berlangganan untuk menggunakan fitur ini">
+            <i data-lucide="lock" class="w-4 h-4 shrink-0"></i>
+            <span class="leading-tight">
+              <span class="block">Tambah Transaksi</span>
+              <span class="block text-[9px] font-normal opacity-80">Berlangganan untuk pakai fitur ini</span>
+            </span>
+          </button>
+        `}
 
         <!-- WIDGET USER LOGIN / PROFIL DINAMIS -->
         <div id="user-profile-widget" class="flex items-center gap-2.5 px-3 py-1.5 bg-white border border-slate-200 rounded-2xl shadow-sm">
@@ -228,7 +255,7 @@ export function renderSavingGoals(state) {
           </div>
           <div class="text-left hidden sm:block">
             <div class="text-xs font-bold text-slate-800 leading-none">${userName}</div>
-            <div class="text-[10px] ${isAdmin ? 'text-amber-600 font-bold' : 'text-slate-400'} mt-0.5">${userPlan}</div>
+            <div class="text-[10px] ${planColorClass} mt-0.5">${userPlan}</div>
           </div>
 
           ${user ? `
@@ -346,9 +373,15 @@ export function renderSavingGoals(state) {
                 <button class="btn-goal-tab px-2 py-1 rounded-md transition ${state.goalTabFilter === 'completed' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-800'}" data-tab="completed">Selesai 🎉</button>
               </div>
 
-              <button id="btn-add-goal-top" class="text-xs font-bold text-emerald-800 hover:text-emerald-900 inline-flex items-center gap-1 shrink-0">
-                <i data-lucide="plus" class="w-3.5 h-3.5"></i> Tambah Target
-              </button>
+              ${canEdit ? `
+                <button id="btn-add-goal-top" class="text-xs font-bold text-emerald-800 hover:text-emerald-900 inline-flex items-center gap-1 shrink-0">
+                  <i data-lucide="plus" class="w-3.5 h-3.5"></i> Tambah Target
+                </button>
+              ` : `
+                <button id="btn-add-goal-top" class="text-xs font-bold text-slate-400 inline-flex items-center gap-1 shrink-0" title="Berlangganan untuk menggunakan fitur ini">
+                  <i data-lucide="lock" class="w-3.5 h-3.5"></i> Tambah Target
+                </button>
+              `}
             </div>
           </div>
 
@@ -545,6 +578,11 @@ export function renderSavingGoals(state) {
   // --- EVENT LISTENER INPUT INDIVIDUAL ALOKASI SETORAN BULANAN ---
   document.querySelectorAll('.input-individual-goal-rate').forEach(input => {
     input.addEventListener('input', (e) => {
+      if (!canEdit) {
+        if (window.app && window.app.modalManager) window.app.modalManager.openLockedFeatureModal('reactivate');
+        return;
+      }
+
       const goalId = e.target.getAttribute('data-id');
       const goalName = e.target.getAttribute('data-name');
       const remaining = Number(e.target.getAttribute('data-remaining')) || 0;
@@ -584,6 +622,11 @@ export function renderSavingGoals(state) {
 
   document.querySelectorAll('.btn-edit-goal').forEach(btn => {
     btn.addEventListener('click', (e) => {
+      if (!canEdit) {
+        if (window.app && window.app.modalManager) window.app.modalManager.openLockedFeatureModal('reactivate');
+        return;
+      }
+
       const goalId = e.currentTarget.getAttribute('data-id');
       const targetGoal = allGoals.find(g => String(g.id) === String(goalId));
       if (!targetGoal) return;
@@ -602,6 +645,13 @@ export function renderSavingGoals(state) {
 
   formEdit?.addEventListener('submit', async (e) => {
     e.preventDefault();
+
+    if (!canEdit) {
+      closeModal();
+      if (window.app && window.app.modalManager) window.app.modalManager.openLockedFeatureModal('reactivate');
+      return;
+    }
+
     const id = document.getElementById('edit-goal-id').value;
     const name = document.getElementById('edit-goal-name').value;
     const targetAmount = Number(document.getElementById('edit-goal-target').value);
@@ -626,20 +676,31 @@ export function renderSavingGoals(state) {
   // --- EVENT LISTENER HAPUS TARGET TABUNGAN ---
   document.querySelectorAll('.btn-delete-goal').forEach(btn => {
     btn.addEventListener('click', async (e) => {
+      if (!canEdit) {
+        if (window.app && window.app.modalManager) window.app.modalManager.openLockedFeatureModal('reactivate');
+        return;
+      }
+
       const id = e.currentTarget.getAttribute('data-id');
       const name = e.currentTarget.getAttribute('data-name');
 
       if (confirm(`Apakah Anda yakin ingin menghapus target "${name}"?`)) {
-        if (typeof state.deleteGoal === 'function') {
-          await state.deleteGoal(id, name);
-        } else {
-          state.savingGoals = state.savingGoals.filter(g => String(g.id) !== String(id) && g.name !== name);
-          if (supabaseService && supabaseService.isConnected) {
-            await supabaseService.deleteSavingGoal(id, name);
+        try {
+          if (typeof state.deleteGoal === 'function') {
+            await state.deleteGoal(id, name);
+          } else {
+            state.savingGoals = state.savingGoals.filter(g => String(g.id) !== String(id) && g.name !== name);
+            if (supabaseService && supabaseService.isConnected) {
+              await supabaseService.deleteSavingGoal(id, name);
+            }
+            if (typeof state.notify === 'function') state.notify();
           }
-          if (typeof state.notify === 'function') state.notify();
+          renderSavingGoals(state);
+        } catch (err) {
+          if (err.message === 'READ_ONLY_MODE') {
+            if (window.app && window.app.modalManager) window.app.modalManager.openLockedFeatureModal('reactivate');
+          }
         }
-        renderSavingGoals(state);
       }
     });
   });

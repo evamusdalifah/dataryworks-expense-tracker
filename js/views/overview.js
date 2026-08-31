@@ -11,12 +11,29 @@ export function renderOverview(state) {
 
   const allTrx = state.transactions || [];
 
-  // Data User untuk Widget Profil Kanan Atas
+  // Data User & Status Langganan untuk Widget Profil Kanan Atas
   const user = supabaseService.currentUser;
-  const role = user?.user_metadata?.role || 'user';
-  const isAdmin = role === 'admin';
+  const subInfo = state.getSubscriptionInfo();
+  const isAdmin = subInfo.isAdmin;
+  const canEdit = subInfo.canEdit;
   const userName = user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Guest User';
-  const userPlan = isAdmin ? 'Admin Plan 👑' : (user ? 'Free Plan' : 'Mode Lokal / Demo');
+
+  let userPlan = 'Mode Lokal / Demo';
+  let planColorClass = 'text-slate-400';
+  if (isAdmin) {
+    userPlan = 'Admin Plan 👑';
+    planColorClass = 'text-amber-600 font-bold';
+  } else if (subInfo.isPremium) {
+    userPlan = 'Premium ✨';
+    planColorClass = 'text-emerald-600 font-bold';
+  } else if (subInfo.isTrial) {
+    userPlan = subInfo.daysLeft != null ? `Free Trial • ${subInfo.daysLeft} hari lagi` : 'Free Trial';
+    planColorClass = 'text-blue-600 font-semibold';
+  } else if (subInfo.isExpired) {
+    userPlan = '🔒 Read-only';
+    planColorClass = 'text-rose-600 font-bold';
+  }
+
   const avatarInitial = userName.charAt(0).toUpperCase();
 
   // 1. Rentang Tanggal Transaksi Dinamis
@@ -160,11 +177,20 @@ export function renderOverview(state) {
 
       <!-- AKSIONAL KANAN ATAS: USER PROFILE + TAMBAH TRANSAKSI -->
       <div class="flex items-center gap-3">
-        <!-- TOMBOL TAMBAH TRANSAKSI -->
-        <button id="btn-top-add-transaction" class="px-4 py-2 bg-emerald-800 hover:bg-emerald-900 text-white rounded-2xl text-xs font-bold shadow-md transition flex items-center gap-2">
-          <i data-lucide="plus-circle" class="w-4 h-4"></i>
-          Tambah Transaksi
-        </button>
+        ${canEdit ? `
+          <button id="btn-top-add-transaction" class="px-4 py-2 bg-emerald-800 hover:bg-emerald-900 text-white rounded-2xl text-xs font-bold shadow-md transition flex items-center gap-2">
+            <i data-lucide="plus-circle" class="w-4 h-4"></i>
+            Tambah Transaksi
+          </button>
+        ` : `
+          <button id="btn-top-add-transaction" class="px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-500 rounded-2xl text-xs font-bold shadow-sm transition flex items-center gap-2 text-left" title="Berlangganan untuk menggunakan fitur ini">
+            <i data-lucide="lock" class="w-4 h-4 shrink-0"></i>
+            <span class="leading-tight">
+              <span class="block">Tambah Transaksi</span>
+              <span class="block text-[9px] font-normal opacity-80">Berlangganan untuk pakai fitur ini</span>
+            </span>
+          </button>
+        `}
 
         <!-- WIDGET USER LOGIN / PROFIL DINAMIS -->
         <div id="user-profile-widget" class="flex items-center gap-2.5 px-3 py-1.5 bg-white border border-slate-200 rounded-2xl shadow-sm">
@@ -173,7 +199,7 @@ export function renderOverview(state) {
           </div>
           <div class="text-left hidden sm:block">
             <div class="text-xs font-bold text-slate-800 leading-none">${userName}</div>
-            <div class="text-[10px] ${isAdmin ? 'text-amber-600 font-bold' : 'text-slate-400'} mt-0.5">${userPlan}</div>
+            <div class="text-[10px] ${planColorClass} mt-0.5">${userPlan}</div>
           </div>
 
           ${user ? `
@@ -188,6 +214,18 @@ export function renderOverview(state) {
         </div>
       </div>
     </div>
+
+    ${!canEdit && !isAdmin ? `
+      <div class="mt-4 flex items-center justify-between gap-3 px-4 py-3 bg-rose-50 border border-rose-300 rounded-xl text-xs text-rose-950 font-medium shadow-sm flex-wrap">
+        <div class="flex items-center gap-2">
+          <i data-lucide="lock" class="w-4 h-4 text-rose-700 shrink-0"></i>
+          <span><strong>🔒 Mode Read-only</strong> — Langganan Anda telah berakhir. Data keuangan Anda tetap aman dan dapat dilihat kapan saja.</span>
+        </div>
+        <button id="btn-reactivate-subscription" class="px-3.5 py-1.5 bg-rose-700 hover:bg-rose-800 text-white text-[11px] font-bold rounded-lg shadow transition shrink-0">
+          Aktifkan Kembali — Rp30.000/bulan
+        </button>
+      </div>
+    ` : ''}
 
     <!-- BANNER CATATAN RENTANG WAKTU DATA -->
     <div class="mt-4 flex items-center gap-2 px-3.5 py-2.5 bg-emerald-50 border border-emerald-300 rounded-xl text-xs text-emerald-950 font-medium shadow-sm">
@@ -452,6 +490,12 @@ export function renderOverview(state) {
   document.getElementById('chart-cashflow-year-select')?.addEventListener('change', (e) => {
     state.overviewCashFlowYear = e.target.value;
     renderOverview(state);
+  });
+
+  document.getElementById('btn-reactivate-subscription')?.addEventListener('click', () => {
+    if (window.app && window.app.modalManager) {
+      window.app.modalManager.openPaymentModal('reactivate');
+    }
   });
 
   // Render Chart

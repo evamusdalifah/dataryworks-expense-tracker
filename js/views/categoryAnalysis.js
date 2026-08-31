@@ -23,12 +23,29 @@ export function renderCategoryAnalysis(state) {
     ? ['#047857', '#10b981', '#3b82f6', '#f59e0b', '#8b5cf6'] 
     : ['#047857', '#10b981', '#f59e0b', '#3b82f6', '#e11d48', '#8b5cf6', '#64748b'];
 
-  // Data User untuk Widget Profil Kanan Atas
+  // Data User & Status Langganan untuk Widget Profil Kanan Atas
   const user = supabaseService.currentUser;
-  const role = user?.user_metadata?.role || 'user';
-  const isAdmin = role === 'admin';
+  const subInfo = state.getSubscriptionInfo();
+  const isAdmin = subInfo.isAdmin;
+  const canEdit = subInfo.canEdit;
   const userName = user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Guest User';
-  const userPlan = isAdmin ? 'Admin Plan 👑' : (user ? 'Free Plan' : 'Mode Lokal / Demo');
+
+  let userPlan = 'Mode Lokal / Demo';
+  let planColorClass = 'text-slate-400';
+  if (isAdmin) {
+    userPlan = 'Admin Plan 👑';
+    planColorClass = 'text-amber-600 font-bold';
+  } else if (subInfo.isPremium) {
+    userPlan = 'Premium ✨';
+    planColorClass = 'text-emerald-600 font-bold';
+  } else if (subInfo.isTrial) {
+    userPlan = subInfo.daysLeft != null ? `Free Trial • ${subInfo.daysLeft} hari lagi` : 'Free Trial';
+    planColorClass = 'text-blue-600 font-semibold';
+  } else if (subInfo.isExpired) {
+    userPlan = '🔒 Read-only';
+    planColorClass = 'text-rose-600 font-bold';
+  }
+
   const avatarInitial = userName.charAt(0).toUpperCase();
 
   const buildSubcatTrendDatasets = () => {
@@ -91,11 +108,20 @@ export function renderCategoryAnalysis(state) {
 
       <!-- AKSIONAL KANAN ATAS: USER PROFILE + TAMBAH TRANSAKSI -->
       <div class="flex items-center gap-3">
-        <!-- TOMBOL TAMBAH TRANSAKSI -->
-        <button id="btn-top-add-transaction" class="px-4 py-2 bg-emerald-800 hover:bg-emerald-900 text-white rounded-2xl text-xs font-bold shadow-md transition flex items-center gap-2">
-          <i data-lucide="plus-circle" class="w-4 h-4"></i>
-          Tambah Transaksi
-        </button>
+        ${canEdit ? `
+          <button id="btn-top-add-transaction" class="px-4 py-2 bg-emerald-800 hover:bg-emerald-900 text-white rounded-2xl text-xs font-bold shadow-md transition flex items-center gap-2">
+            <i data-lucide="plus-circle" class="w-4 h-4"></i>
+            Tambah Transaksi
+          </button>
+        ` : `
+          <button id="btn-top-add-transaction" class="px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-500 rounded-2xl text-xs font-bold shadow-sm transition flex items-center gap-2 text-left" title="Berlangganan untuk menggunakan fitur ini">
+            <i data-lucide="lock" class="w-4 h-4 shrink-0"></i>
+            <span class="leading-tight">
+              <span class="block">Tambah Transaksi</span>
+              <span class="block text-[9px] font-normal opacity-80">Berlangganan untuk pakai fitur ini</span>
+            </span>
+          </button>
+        `}
 
         <!-- WIDGET USER LOGIN / PROFIL DINAMIS -->
         <div id="user-profile-widget" class="flex items-center gap-2.5 px-3 py-1.5 bg-white border border-slate-200 rounded-2xl shadow-sm">
@@ -104,7 +130,7 @@ export function renderCategoryAnalysis(state) {
           </div>
           <div class="text-left hidden sm:block">
             <div class="text-xs font-bold text-slate-800 leading-none">${userName}</div>
-            <div class="text-[10px] ${isAdmin ? 'text-amber-600 font-bold' : 'text-slate-400'} mt-0.5">${userPlan}</div>
+            <div class="text-[10px] ${planColorClass} mt-0.5">${userPlan}</div>
           </div>
 
           ${user ? `

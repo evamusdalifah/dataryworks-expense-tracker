@@ -32,6 +32,9 @@ class AppState {
     this.savingGoals = [];
     this.savingContributions = [];
 
+    // Subscription / Trial System
+    this.subscription = null; // { status, trial_end_date, premium_until }
+
     // UI Listeners
     this.listeners = [];
     this.lastUpdated = new Date();
@@ -65,13 +68,16 @@ class AppState {
       const dbTrx = await supabaseService.fetchTransactions();
       const dbGoals = await supabaseService.fetchGoals();
       const dbCats = await supabaseService.fetchCategories();
+      const dbSub = await supabaseService.fetchSubscription();
 
       if (dbTrx) this.transactions = dbTrx;
       if (dbGoals) this.savingGoals = dbGoals;
       if (dbCats && dbCats.length > 0) this.categories = dbCats;
+      this.subscription = dbSub;
     } else {
       // Fallback Local Storage jika tidak ada user / offline mode
       this.loadFromLocalStorage();
+      this.subscription = null;
     }
 
     this.isLoading = false;
@@ -81,6 +87,7 @@ class AppState {
   clearUserData() {
     this.transactions = [];
     this.savingGoals = [];
+    this.subscription = null;
     this.notify();
   }
 
@@ -116,6 +123,112 @@ class AppState {
     this.listeners.forEach(cb => cb(this));
   }
 
+  // ==============================================================================
+  // SUBSCRIPTION / TRIAL SYSTEM HELPERS
+  // ==============================================================================
+
+  /**
+   * Menghitung status langganan user saat ini secara real-time berdasarkan tanggal.
+   * Return object: { tier, daysLeft, isAdmin, isPremium, isTrial, isExpired, canEdit }
+   *
+   * tier: 'admin' | 'premium' | 'trial' | 'expired' | 'guest'
+   */
+  getSubscriptionInfo() {
+    const user = supabaseService.currentUser;
+
+    // Belum login sama sekali (guest / mode lokal)
+    if (!user) {
+      return {
+        tier: 'guest',
+        daysLeft: null,
+        isAdmin: false,
+        isPremium: false,
+        isTrial: false,
+        isExpired: false,
+        canEdit: true // mode lokal/demo bebas edit (data hanya di localStorage)
+      };
+    }
+
+    // Admin selalu bebas akses penuh, tidak terikat trial/subscription
+    const role = user?.user_metadata?.role || 'user';
+    if (role === 'admin') {
+      return {
+        tier: 'admin',
+        daysLeft: null,
+        isAdmin: true,
+        isPremium: true,
+        isTrial: false,
+        isExpired: false,
+        canEdit: true
+      };
+    }
+
+    const sub = this.subscription;
+    const now = new Date();
+
+    // Data subscription belum termuat (masih loading) -> anggap sementara bisa edit
+    // supaya tidak flash-lock UI saat baru login, akan dikoreksi begitu data masuk.
+    if (!sub) {
+      return {
+        tier: 'trial',
+        daysLeft: null,
+        isAdmin: false,
+        isPremium: false,
+        isTrial: true,
+        isExpired: false,
+        canEdit: true
+      };
+    }
+
+    // Cek status PREMIUM aktif
+    if (sub.status === 'premium' && sub.premium_until && new Date(sub.premium_until) > now) {
+      return {
+        tier: 'premium',
+        daysLeft: null,
+        isAdmin: false,
+        isPremium: true,
+        isTrial: false,
+        isExpired: false,
+        canEdit: true
+      };
+    }
+
+    // Cek status TRIAL masih berjalan
+    const trialEnd = sub.trial_end_date ? new Date(sub.trial_end_date) : null;
+    if (trialEnd) {
+      const msLeft = trialEnd.getTime() - now.getTime();
+      const daysLeft = Math.ceil(msLeft / (1000 * 60 * 60 * 24));
+
+      if (daysLeft > 0) {
+        return {
+          tier: 'trial',
+          daysLeft,
+          isAdmin: false,
+          isPremium: false,
+          isTrial: true,
+          isExpired: false,
+          canEdit: true
+        };
+      }
+    }
+
+    // Selain itu: trial habis & tidak premium aktif -> EXPIRED (mode read-only)
+    return {
+      tier: 'expired',
+      daysLeft: 0,
+      isAdmin: false,
+      isPremium: false,
+      isTrial: false,
+      isExpired: true,
+      canEdit: false
+    };
+  }
+
+  /** Shortcut boolean: apakah user saat ini boleh menambah/edit/hapus data */
+  canEditData() {
+    return this.getSubscriptionInfo().canEdit;
+  }
+
   // --- ACTIONS ---
   setActiveTab(tab) {
     this.activeTab = tab;
@@ -147,6 +260,10 @@ class AppState {
   }
 
   async addTransaction(trxData) {
+    if (!this.canEditData()) {
+      throw new Error('READ_ONLY_MODE');
+    }
+
     let normalizedType = (trxData.type || 'expense').toLowerCase();
     if (normalizedType.includes('tabung') || normalizedType.includes('invest') || normalizedType === 'goal') {
       normalizedType = 'saving';
@@ -184,6 +301,10 @@ class AppState {
   }
 
   async deleteTransaction(id) {
+    if (!this.canEditData()) {
+      throw new Error('READ_ONLY_MODE');
+    }
+
     this.transactions = this.transactions.filter(t => t.id !== id);
     this.touchUpdated();
     if (supabaseService && supabaseService.isConnected) {
@@ -194,6 +315,10 @@ class AppState {
 
   // --- SAVING GOALS ACTIONS ---
   async addGoal(goalData) {
+    if (!this.canEditData()) {
+      throw new Error('READ_ONLY_MODE');
+    }
+
     const targetAmount = Number(goalData.targetAmount || goalData.target) || 0;
     const savedAmount = Number(goalData.savedAmount || goalData.saved) || 0;
 
@@ -222,6 +347,10 @@ class AppState {
   }
 
   async addContribution(contribData, autoNotify = true) {
+    if (autoNotify && !this.canEditData()) {
+      throw new Error('READ_ONLY_MODE');
+    }
+
     const amount = Number(contribData.amount) || 0;
     const newContrib = {
       id: 'contrib-' + Date.now(),
@@ -575,31 +704,11 @@ class AppState {
     return trendData;
   }
 
-  getSubscriptionInfo() {
-    const user = supabaseService.currentUser;
-    if (!user) return { status: 'expired', daysLeft: 0, isReadonly: true };
-
-    // Ambil data metadata user
-    const status = user.user_metadata?.subscription_status || 'trial'; // 'trial' | 'premium' | 'expired'
-    const createdAt = new Date(user.created_at || Date.now());
-    const endDate = new Date(createdAt.getTime() + (30 * 24 * 60 * 60 * 1000)); // 30 hari trial
-    
-    const now = new Date();
-    const diffTime = endDate - now;
-    const daysLeft = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-
-    if (status === 'premium') {
-      return { status: 'premium', daysLeft: 999, isReadonly: false };
-    }
-
-    if (daysLeft <= 0 || status === 'expired') {
-      return { status: 'expired', daysLeft: 0, isReadonly: true };
-    }
-
-    return { status: 'trial', daysLeft, isReadonly: false };
-  }
-
   async deleteGoal(id, name) {
+    if (!this.canEditData()) {
+      throw new Error('READ_ONLY_MODE');
+    }
+
     this.savingGoals = this.savingGoals.filter(g => String(g.id) !== String(id) && g.name !== name);
     this.touchUpdated();
 
@@ -612,6 +721,10 @@ class AppState {
 
   // --- ADD CUSTOM CATEGORY METHOD ---
   async addCustomCategory({ name, type, subcategory = 'General' }) {
+    if (!this.canEditData()) {
+      throw new Error('READ_ONLY_MODE');
+    }
+
     let cat = (this.categories || []).find(c => c.name.toLowerCase() === name.toLowerCase() && c.type === type);
 
     if (!cat) {
@@ -643,6 +756,10 @@ class AppState {
   }
 
   async addCustomSubcategory(categoryName, subcategoryName) {
+    if (!this.canEditData()) {
+      throw new Error('READ_ONLY_MODE');
+    }
+
     const cat = (this.categories || []).find(c => c.name === categoryName);
     if (cat) {
       if (!cat.subcategories.includes(subcategoryName)) {
@@ -656,12 +773,15 @@ class AppState {
   }
 
   async deleteCategory(categoryId) {
+    if (!this.canEditData()) {
+      throw new Error('READ_ONLY_MODE');
+    }
+
     const targetCat = (this.categories || []).find(c => String(c.id) === String(categoryId));
     if (!targetCat) return;
 
     if (targetCat.isSystem) {
-      alert('Kategori bawaan sistem tidak dapat dihapus.');
-      return;
+      throw new Error('Kategori bawaan sistem tidak dapat dihapus.');
     }
 
     (this.transactions || []).forEach(t => {
