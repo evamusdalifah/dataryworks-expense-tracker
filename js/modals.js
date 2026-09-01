@@ -1348,9 +1348,9 @@ export class ModalManager {
     let selectedMethod = 'Mandiri';
 
     const paymentDetails = {
-      Mandiri: { label: 'Transfer Bank Mandiri', account: '1234567890 a.n. DataryWorks' },
-      ShopeePay: { label: 'ShopeePay', account: '0812-3456-7890 a.n. DataryWorks' },
-      OVO: { label: 'OVO', account: '0812-3456-7890 a.n. DataryWorks' }
+      Mandiri: { label: 'Transfer Bank Mandiri', account: '1420020938527 a.n. Eva Musdalifah' },
+      ShopeePay: { label: 'ShopeePay', account: '0857-4660-6551 a.n. Eva Musdalifah' },
+      OVO: { label: 'OVO', account: '0857-4660-6551 a.n. Eva Musdalifah' }
     };
 
     const renderContent = () => `
@@ -1534,6 +1534,8 @@ export class ModalManager {
     `;
 
     this.open(html, 'max-w-sm');
+
+    document.getElementById('btn-logout-cancel')?.addEventListener('click', () => this.close());
 
     document.getElementById('btn-logout-confirm')?.addEventListener('click', async () => {
       const btn = document.getElementById('btn-logout-confirm');
