@@ -65,7 +65,7 @@ class App {
       const sidebarEl = document.getElementById('sidebar-container');
       if (sidebarEl) {
         sidebarEl.innerHTML = `
-          <div class="flex flex-col h-full justify-between p-5 bg-[#0F172A] text-slate-300 border-r border-slate-800">
+          <div class="flex flex-col min-h-full justify-between p-5 bg-[#0F172A] text-slate-300 border-r border-slate-800">
             <div class="flex items-center gap-3 pb-5 border-b border-slate-800">
               <div class="w-10 h-10 rounded-xl bg-emerald-500 text-slate-950 flex items-center justify-center font-bold shadow-md shrink-0">
                 <i data-lucide="trending-up" class="w-6 h-6"></i>
@@ -159,7 +159,7 @@ class App {
     const trialBannerHtml = this.getTrialBannerHtml();
 
     sidebarEl.innerHTML = `
-      <div class="flex flex-col h-full justify-between p-5 bg-[#0F172A] text-slate-300 border-r border-slate-800">
+      <div class="flex flex-col min-h-full justify-between p-5 bg-[#0F172A] text-slate-300 border-r border-slate-800">
         <div>
           <div class="flex items-center gap-3 pb-5 border-b border-slate-800">
             <div class="w-10 h-10 rounded-xl bg-emerald-500 text-slate-950 flex items-center justify-center font-bold shadow-md shrink-0">
@@ -356,10 +356,15 @@ class App {
       `;
     }
 
-    // > 7 hari: tampilan normal, cukup info kecil tanpa CTA mendesak
+    // > 7 hari: tampilan normal, cukup info kecil tanpa CTA mendesak,
+    // ditambah link kecil & halus untuk user proaktif yang mau berlangganan
+    // lebih awal tanpa menunggu masa trial mendekati habis.
     return `
       <div class="p-3 bg-slate-800/60 rounded-xl border border-slate-700/60 text-[11px] text-slate-300 font-medium leading-relaxed mb-1 text-center">
         🎉 Masa trial aktif — <strong class="text-white">${daysLeft} hari</strong> tersisa
+        <button id="btn-sidebar-subscribe-early" data-context="renew_early" class="block w-full mt-1.5 text-emerald-400 hover:text-emerald-300 font-semibold underline underline-offset-2 transition">
+          Kelola Langganan
+        </button>
       </div>
     `;
   }
@@ -415,9 +420,11 @@ class App {
     document.getElementById('btn-export-pdf')?.addEventListener('click', () => exportToPDF(state));
     document.getElementById('btn-export-csv')?.addEventListener('click', () => exportToCSV(state));
 
-    document.getElementById('btn-sidebar-subscribe')?.addEventListener('click', (e) => {
-      const context = e.currentTarget.getAttribute('data-context') || 'renew_early';
-      this.modalManager.openPaymentModal(context);
+    document.querySelectorAll('#btn-sidebar-subscribe, #btn-sidebar-subscribe-early').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        const context = e.currentTarget.getAttribute('data-context') || 'renew_early';
+        this.modalManager.openPaymentModal(context);
+      });
     });
   }
 
