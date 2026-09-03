@@ -1336,7 +1336,7 @@ export class ModalManager {
   // context: 'renew_early' (H-7 s/d H-4), 'renew_urgent' (H-3 s/d H-2),
   //          'renew_last' (H-1), 'reactivate' (sudah expired / read-only)
   openPaymentModal(context = 'renew_early') {
-    const ADMIN_WA_NUMBER = '6281234567890'; // TODO: ganti dengan nomor WhatsApp admin kamu
+    const ADMIN_WA_NUMBER = '0895703185590'; // TODO: ganti dengan nomor WhatsApp admin kamu
 
     const titles = {
       renew_early: 'Lanjutkan Berlangganan',
