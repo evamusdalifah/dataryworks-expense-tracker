@@ -180,6 +180,24 @@ class AppState {
       };
     }
 
+    // PRIORITAS PALING ATAS: kalau admin sudah SECARA EKSPLISIT set status
+    // jadi 'expired' (misal untuk nonaktifkan manual/refund/pembatalan),
+    // itu harus langsung berlaku SEKARANG JUGA -- tidak peduli trial_end_date
+    // masih di masa depan atau tidak. Sebelumnya kode ini melewatkan status
+    // 'expired' manual dan tetap menghitung sisa hari trial, sehingga admin
+    // tidak bisa benar-benar menonaktifkan user sebelum trial-nya habis.
+    if (sub.status === 'expired') {
+      return {
+        tier: 'expired',
+        daysLeft: 0,
+        isAdmin: false,
+        isPremium: false,
+        isTrial: false,
+        isExpired: true,
+        canEdit: false
+      };
+    }
+
     // Cek status PREMIUM aktif
     if (sub.status === 'premium' && sub.premium_until && new Date(sub.premium_until) > now) {
       return {
