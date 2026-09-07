@@ -1336,21 +1336,19 @@ export class ModalManager {
   // context: 'renew_early' (H-7 s/d H-4), 'renew_urgent' (H-3 s/d H-2),
   //          'renew_last' (H-1), 'reactivate' (sudah expired / read-only)
   openPaymentModal(context = 'renew_early') {
-    const ADMIN_WA_NUMBER = '0895703185590'; // TODO: ganti dengan nomor WhatsApp admin kamu
+    const ADMIN_WA_NUMBER = '62895703185590'; // TODO: ganti dengan nomor WhatsApp admin kamu
+
+    // TODO: setelah gambar QRIS jadi, upload file-nya ke root project (sejajar
+    // dengan index.html) dengan nama PERSIS "qris.png" -- begitu file itu ada,
+    // gambar QR otomatis muncul di modal ini tanpa perlu ubah kode apa pun.
+    // Selama file belum ada, modal ini otomatis menampilkan placeholder rapi.
+    const QRIS_IMAGE_PATH = '/qris.png';
 
     const titles = {
       renew_early: 'Lanjutkan Berlangganan',
       renew_urgent: 'Berlangganan Sekarang',
       renew_last: 'Aktifkan Langganan',
       reactivate: 'Aktifkan Kembali Langganan'
-    };
-
-    let selectedMethod = 'Mandiri';
-
-    const paymentDetails = {
-      Mandiri: { label: 'Transfer Bank Mandiri', account: '1420020938527 a.n. Eva Musdalifah' },
-      ShopeePay: { label: 'ShopeePay', account: '0857-4660-6551 a.n. Eva Musdalifah' },
-      OVO: { label: 'OVO', account: '0857-4660-6551 a.n. Eva Musdalifah' }
     };
 
     const renderContent = () => `
@@ -1365,33 +1363,42 @@ export class ModalManager {
       </div>
 
       <div class="p-6 space-y-4 overflow-y-auto flex-1">
-        <div>
-          <label class="block text-xs font-bold text-slate-700 mb-2">Pilih Metode Pembayaran</label>
-          <div class="grid grid-cols-3 gap-2">
-            ${Object.keys(paymentDetails).map(m => `
-              <button type="button" data-method="${m}" class="btn-pay-method py-2.5 text-xs font-bold rounded-xl border-2 transition ${m === selectedMethod ? 'border-emerald-600 bg-emerald-50 text-emerald-800' : 'border-slate-200 text-slate-600 hover:border-slate-300'}">
-                ${m}
-              </button>
-            `).join('')}
+        <div class="flex flex-col items-center gap-2">
+          <div id="qris-image-wrapper" class="w-56 h-56 bg-slate-50 border-2 border-dashed border-slate-300 rounded-2xl flex items-center justify-center overflow-hidden">
+            <img
+              id="qris-image"
+              src="${QRIS_IMAGE_PATH}"
+              alt="QRIS DataryWorks"
+              class="w-full h-full object-contain"
+              onerror="this.style.display='none'; document.getElementById('qris-placeholder').style.display='flex';"
+            />
+            <div id="qris-placeholder" class="hidden flex-col items-center justify-center gap-2 text-slate-400 p-4 text-center">
+              <i data-lucide="qr-code" class="w-10 h-10"></i>
+              <p class="text-[11px] font-semibold">QRIS belum diunggah admin</p>
+              <p class="text-[10px] text-slate-400">Hubungi admin lewat WhatsApp untuk instruksi pembayaran</p>
+            </div>
+          </div>
+          <p class="text-xs font-bold text-slate-900">Scan QRIS di atas</p>
+          <p class="text-[11px] text-slate-500 -mt-1">Pakai aplikasi e-wallet atau mobile banking apa pun</p>
+          <div class="mt-1 px-3 py-1.5 bg-emerald-50 border border-emerald-200 rounded-lg text-xs font-black text-emerald-800">
+            Nominal: Rp30.000
           </div>
         </div>
 
-        <div id="payment-detail-box" class="p-3.5 bg-slate-50 border border-slate-200 rounded-xl">
-          <p class="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Transfer / Bayar Ke</p>
-          <p class="text-sm font-black text-slate-900" id="payment-detail-label">${paymentDetails[selectedMethod].label}</p>
-          <p class="text-xs font-semibold text-emerald-700 mt-0.5" id="payment-detail-account">${paymentDetails[selectedMethod].account}</p>
-          <p class="text-xs text-slate-500 mt-2">Nominal: <strong class="text-slate-900">Rp30.000</strong></p>
+        <div>
+          <label class="block text-xs font-bold text-slate-700 mb-1">Bayar Menggunakan Aplikasi Apa?</label>
+          <input type="text" id="input-payment-method" required placeholder="misal: GoPay, DANA, OVO, Mobile Banking BCA" class="w-full px-3.5 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-600">
         </div>
 
         <div>
           <label class="block text-xs font-bold text-slate-700 mb-1">Nomor Rekening / HP Pengirim</label>
-          <input type="text" id="input-payment-sender" required placeholder="Nomor rekening atau HP yang kamu pakai transfer" class="w-full px-3.5 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-600">
-          <p class="text-[10px] text-slate-400 mt-1">Diperlukan supaya admin bisa mencocokkan bukti transfer kamu.</p>
+          <input type="text" id="input-payment-sender" required placeholder="Nomor rekening atau HP yang kamu pakai bayar" class="w-full px-3.5 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-600">
+          <p class="text-[10px] text-slate-400 mt-1">Diperlukan supaya admin bisa mencocokkan bukti pembayaran kamu.</p>
         </div>
 
         <div class="p-3 bg-amber-50 border border-amber-200 rounded-xl text-[11px] text-amber-900 leading-relaxed">
-          1. Transfer Rp30.000 ke rekening di atas.<br>
-          2. Isi nomor rekening/HP pengirim kamu.<br>
+          1. Scan QRIS di atas, bayar Rp30.000.<br>
+          2. Isi aplikasi & nomor rekening/HP yang kamu pakai.<br>
           3. Klik tombol "Konfirmasi Pembayaran" di bawah — kamu akan diarahkan ke WhatsApp admin untuk verifikasi.<br>
           4. Setelah admin memverifikasi, akun kamu otomatis aktif kembali.
         </div>
@@ -1405,72 +1412,63 @@ export class ModalManager {
 
     this.open(renderContent(), 'max-w-md');
 
-    const attachEvents = () => {
-      this.container.querySelectorAll('.btn-pay-method').forEach(btn => {
-        btn.addEventListener('click', () => {
-          selectedMethod = btn.getAttribute('data-method');
-          this.container.querySelectorAll('.btn-pay-method').forEach(b => {
-            const isActive = b.getAttribute('data-method') === selectedMethod;
-            b.className = `btn-pay-method py-2.5 text-xs font-bold rounded-xl border-2 transition ${isActive ? 'border-emerald-600 bg-emerald-50 text-emerald-800' : 'border-slate-200 text-slate-600 hover:border-slate-300'}`;
-          });
-          document.getElementById('payment-detail-label').textContent = paymentDetails[selectedMethod].label;
-          document.getElementById('payment-detail-account').textContent = paymentDetails[selectedMethod].account;
-        });
-      });
+    document.getElementById('btn-confirm-payment')?.addEventListener('click', async () => {
+      const methodInput = document.getElementById('input-payment-method');
+      const senderInput = document.getElementById('input-payment-sender');
+      const paymentMethod = methodInput?.value.trim();
+      const senderAccount = senderInput?.value.trim();
 
-      document.getElementById('btn-confirm-payment')?.addEventListener('click', async () => {
-        const senderInput = document.getElementById('input-payment-sender');
-        const senderAccount = senderInput?.value.trim();
+      if (!paymentMethod) {
+        methodInput?.classList.add('ring-2', 'ring-rose-500');
+        methodInput?.focus();
+        return;
+      }
+      if (!senderAccount) {
+        senderInput?.classList.add('ring-2', 'ring-rose-500');
+        senderInput?.focus();
+        return;
+      }
 
-        if (!senderAccount) {
-          senderInput?.classList.add('ring-2', 'ring-rose-500');
-          senderInput?.focus();
-          return;
-        }
+      const btn = document.getElementById('btn-confirm-payment');
+      if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = 'Memproses...';
+      }
 
-        const btn = document.getElementById('btn-confirm-payment');
-        if (btn) {
-          btn.disabled = true;
-          btn.innerHTML = 'Memproses...';
-        }
+      const user = supabaseService.currentUser;
+      const userName = user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'User';
+      const userEmail = user?.email || '-';
+      const timestamp = new Date().toLocaleString('id-ID', { dateStyle: 'full', timeStyle: 'short' });
 
-        const user = supabaseService.currentUser;
-        const userName = user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'User';
-        const userEmail = user?.email || '-';
-        const timestamp = new Date().toLocaleString('id-ID', { dateStyle: 'full', timeStyle: 'short' });
+      // Simpan log ke Supabase (best-effort, tidak menghalangi WA kalau gagal)
+      try {
+        await supabaseService.insertPaymentConfirmation({ method: `QRIS (${paymentMethod})`, senderAccount });
+      } catch (e) {
+        console.warn('Gagal simpan log pembayaran:', e);
+      }
 
-        // Simpan log ke Supabase (best-effort, tidak menghalangi WA kalau gagal)
-        try {
-          await supabaseService.insertPaymentConfirmation({ method: selectedMethod, senderAccount });
-        } catch (e) {
-          console.warn('Gagal simpan log pembayaran:', e);
-        }
+      const waMessage = [
+        `*Konfirmasi Pembayaran DataryWorks*`,
+        ``,
+        `Waktu: ${timestamp}`,
+        `Nama: ${userName}`,
+        `Email: ${userEmail}`,
+        `Metode: QRIS via ${paymentMethod}`,
+        `No. Rekening/HP Pengirim: ${senderAccount}`,
+        ``,
+        `Mohon diverifikasi dan aktifkan langganan saya. Terima kasih!`
+      ].join('\n');
 
-        const waMessage = [
-          `*Konfirmasi Pembayaran DataryWorks*`,
-          ``,
-          `Waktu: ${timestamp}`,
-          `Nama: ${userName}`,
-          `Email: ${userEmail}`,
-          `Metode: ${selectedMethod}`,
-          `No. Rekening/HP Pengirim: ${senderAccount}`,
-          ``,
-          `Mohon diverifikasi dan aktifkan langganan saya. Terima kasih!`
-        ].join('\n');
+      const waUrl = `https://wa.me/${ADMIN_WA_NUMBER}?text=${encodeURIComponent(waMessage)}`;
+      window.open(waUrl, '_blank');
 
-        const waUrl = `https://wa.me/${ADMIN_WA_NUMBER}?text=${encodeURIComponent(waMessage)}`;
-        window.open(waUrl, '_blank');
-
-        this.openSuccessModal(
-          'Kamu akan diarahkan ke WhatsApp untuk mengirim konfirmasi ke admin. Setelah admin memverifikasi pembayaran, langganan kamu akan otomatis aktif — biasanya tidak lama.',
-          () => this.close(),
-          'message-circle',
-          'Konfirmasi Terkirim'
-        );
-      });
-    };
-
-    attachEvents();
+      this.openSuccessModal(
+        'Kamu akan diarahkan ke WhatsApp untuk mengirim konfirmasi ke admin. Kalau muncul pilihan "Open app" atau "Continue to WhatsApp Web", pilih <strong>"Continue to WhatsApp Web"</strong> supaya pesan pasti terkirim ke nomor & isi yang benar. Setelah admin memverifikasi pembayaran, langganan kamu akan otomatis aktif — biasanya tidak lama.',
+        () => this.close(),
+        'message-circle',
+        'Konfirmasi Terkirim'
+      );
+    });
   }
 
   // --- NOTIFIKASI FITUR TERKUNCI (Mode Read-only) ---
