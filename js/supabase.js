@@ -432,6 +432,46 @@ class SupabaseService {
   }
 
   // ==============================================================================
+  // ADMIN PANEL (memanggil RPC function khusus admin di database -- keamanan
+  // sesungguhnya ada di sisi database via pengecekan role, bukan di sini)
+  // ==============================================================================
+
+  async adminListUsers() {
+    if (!this.client) return { success: false, error: 'Client belum terkoneksi' };
+    const { data, error } = await this.client.rpc('admin_list_users');
+    if (error) return { success: false, error: error.message };
+    return { success: true, data: data || [] };
+  }
+
+  async adminSetSubscription(targetUserId, newStatus, monthsToAdd = 1) {
+    if (!this.client) return { success: false, error: 'Client belum terkoneksi' };
+    const { error } = await this.client.rpc('admin_set_subscription', {
+      target_user_id: targetUserId,
+      new_status: newStatus,
+      months_to_add: monthsToAdd
+    });
+    if (error) return { success: false, error: error.message };
+    return { success: true };
+  }
+
+  async adminListPendingPayments() {
+    if (!this.client) return { success: false, error: 'Client belum terkoneksi' };
+    const { data, error } = await this.client.rpc('admin_list_pending_payments');
+    if (error) return { success: false, error: error.message };
+    return { success: true, data: data || [] };
+  }
+
+  async adminResolvePayment(confirmationId, approve) {
+    if (!this.client) return { success: false, error: 'Client belum terkoneksi' };
+    const { error } = await this.client.rpc('admin_resolve_payment', {
+      confirmation_id: confirmationId,
+      approve
+    });
+    if (error) return { success: false, error: error.message };
+    return { success: true };
+  }
+
+  // ==============================================================================
   // CATEGORIES & SUBCATEGORIES MANAGEMENT
   // ==============================================================================
 

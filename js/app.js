@@ -10,6 +10,7 @@ import { renderOverview } from './views/overview.js';
 import { renderIncomeVsExpense } from './views/incomeVsExpense.js';
 import { renderCategoryAnalysis } from './views/categoryAnalysis.js';
 import { renderSavingGoals } from './views/savingGoals.js';
+import { renderAdminPanel } from './views/adminPanel.js';
 import { exportToPDF, exportToCSV } from './export.js';
 
 class App {
@@ -145,6 +146,8 @@ class App {
     const isIncExp = state.activeTab === 'incomeVsExpense';
     const isCat = state.activeTab === 'categoryAnalysis';
     const isGoals = state.activeTab === 'savingGoals';
+    const isAdminPanel = state.activeTab === 'adminPanel';
+    const isAdminUser = state.getSubscriptionInfo().isAdmin;
 
     const activeType = state.analysisType || 'expense';
     const availableCategories = (state.categories || [])
@@ -191,6 +194,13 @@ class App {
               <i data-lucide="target" class="w-4 h-4 ${isGoals ? 'text-emerald-400' : 'text-slate-500'}"></i>
               <span>Saving Goals</span>
             </button>
+
+            ${isAdminUser ? `
+              <button id="nav-admin-panel" class="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold transition ${isAdminPanel ? 'bg-amber-500/10 text-amber-400 border border-amber-500/30 font-bold' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}">
+                <i data-lucide="shield" class="w-4 h-4 ${isAdminPanel ? 'text-amber-400' : 'text-slate-500'}"></i>
+                <span>Admin Panel</span>
+              </button>
+            ` : ''}
           </nav>
 
           <div class="mt-8 pt-5 border-t border-slate-800">
@@ -385,6 +395,18 @@ class App {
       case 'savingGoals':
         renderSavingGoals(state);
         break;
+      case 'adminPanel':
+        // Defense-in-depth: walau nav item ini sudah disembunyikan dari UI
+        // untuk non-admin, cek ulang di sini juga sebelum render -- keamanan
+        // sesungguhnya tetap ada di database (RPC function menolak non-admin),
+        // ini cuma mencegah non-admin sengaja mengubah state.activeTab manual.
+        if (state.getSubscriptionInfo().isAdmin) {
+          renderAdminPanel(state);
+        } else {
+          state.activeTab = 'overview';
+          renderOverview(state);
+        }
+        break;
       default:
         renderOverview(state);
     }
@@ -395,6 +417,7 @@ class App {
     document.getElementById('nav-income-expense')?.addEventListener('click', () => state.setActiveTab('incomeVsExpense'));
     document.getElementById('nav-category-analysis')?.addEventListener('click', () => state.setActiveTab('categoryAnalysis'));
     document.getElementById('nav-saving-goals')?.addEventListener('click', () => state.setActiveTab('savingGoals'));
+    document.getElementById('nav-admin-panel')?.addEventListener('click', () => state.setActiveTab('adminPanel'));
 
     document.getElementById('filter-toggle-expense')?.addEventListener('click', () => {
       state.analysisType = 'expense';
