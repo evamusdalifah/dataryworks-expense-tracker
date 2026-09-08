@@ -553,10 +553,16 @@ class SupabaseService {
   async deleteCategory(categoryId, categoryName, categoryType) {
     if (!this.client || !this.currentUser) return { success: true, localOnly: true };
     try {
+      // PENTING: nama kolom di tabel transactions adalah "category_name" dan
+      // "subcategory_name" -- sebelumnya kode ini salah pakai "category"/
+      // "subcategory" (tidak ada di skema), sehingga update ini diam-diam
+      // gagal tanpa error yang kelihatan, dan transaksi tidak benar-benar
+      // pindah ke "Others" di database (cuma kelihatan pindah di browser
+      // sampai halaman di-reload).
       await this.client
         .from('transactions')
-        .update({ category: 'Others', subcategory: 'General' })
-        .eq('category', categoryName)
+        .update({ category_name: 'Others', subcategory_name: 'General' })
+        .eq('category_name', categoryName)
         .eq('type', categoryType)
         .eq('user_id', this.currentUser.id);
 
